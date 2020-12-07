@@ -1,13 +1,12 @@
 #include "stdafx.h"
 #include "GlobalSettings.h"
 #include <filesystem>
-#include <boost/property_tree/ptree.hpp>
-#include <boost/property_tree/xml_parser.hpp>
 #include <fstream>
 #include <sstream>
+#include <ryml/ryml.hpp>
+#include <ryml/ryml_std.hpp>
 
 namespace fs = std::filesystem;
-namespace pt = boost::property_tree;
 
 constexpr const char* FLAG = "git\b";
 
@@ -18,10 +17,6 @@ struct TailFlag
 };
 
 constexpr int FLAG_SIZE = sizeof(TailFlag);
-
-GlobalSettings::GlobalSettings()
-{
-}
 
 void GlobalSettings::init()
 {
@@ -35,29 +30,47 @@ void GlobalSettings::init()
 
 void GlobalSettings::loadFromTree(void* ptree)
 {
-	pt::ptree& tree = *(pt::ptree*)ptree;
-	remote_url = tree.get<std::string>("git.remote", "");
-	branch = tree.get<std::string>("git.branch", "master");
-	fs::path pathLocalDir = tree.get<std::string>("git.local", "..");
-	if (pathLocalDir.is_relative())
-	{
-		fs::path path{ base_dir };
-		path /= pathLocalDir;
-		pathLocalDir = fs::weakly_canonical(path);
+	remote_url = "";
+	branch = "";
+	local_dir = "..";
+
+	ryml::Tree& tree = *(ryml::Tree*)ptree;
+	if (tree.size() > 2)
+	{		
+		if (auto root = tree.rootref(); root.valid() && root.has_child("git"))
+		{
+			auto git_node = root["git"];
+			git_node.get_if<std::string>("remote", &remote_url, "");
+			git_node.get_if<std::string>("branch", &branch, "");
+			git_node.get_if<std::string>("local", &local_dir, "..");
+
+			fs::path pathLocalDir = local_dir;
+			if (pathLocalDir.is_relative())
+			{
+				fs::path path{ base_dir };
+				path /= pathLocalDir;
+				pathLocalDir = fs::weakly_canonical(path);
+				local_dir = pathLocalDir.string();
+			}
+		}
 	}
-	local_dir = pathLocalDir.string();
 }
 
 std::string GlobalSettings::saveToString() const
 {
-	pt::ptree tree;
-	tree.put("git.remote", remote_url);
-	tree.put("git.branch", branch);
-	tree.put("git.local", local_dir);
+	ryml::Tree tree;
+	auto r = tree.rootref();
+	r |= ryml::MAP;
+	auto node_git = r["git"];
+	node_git |= ryml::MAP;
 
-	std::stringstream ss;
-	pt::write_xml(ss, tree);
-	return ss.str();
+	node_git["remote"] << remote_url;
+	node_git["branch"] << branch;
+	node_git["local"] << local_dir;
+
+	char buff[2048] = { 0 };	
+	auto res = ryml::emit(tree, buff);
+	return { res.begin(), res.end() };
 }
 
 bool GlobalSettings::loadFromFile(const std::string& file)
@@ -72,16 +85,15 @@ bool GlobalSettings::loadFromFile(const std::string& file)
 
 	base_dir = pathFile.parent_path().string();
 
-	pt::ptree tree;
 	try {
 		std::ifstream ifs{ pathFile };
-		pt::read_xml(ifs, tree);
+		std::string str(std::istreambuf_iterator<char>{ifs}, {});
+		ryml::Tree tree = ryml::parse(c4::to_csubstr(str));
+		loadFromTree(&tree);
 	}
-	catch (std::exception&) {
+	catch (...) {
 		return false;
 	}
-
-	loadFromTree(&tree);
 
 	return !remote_url.empty();
 }
@@ -103,15 +115,13 @@ bool GlobalSettings::loadFromSelf()
 			s.resize(flag.size);
 			ifs.read(s.data(), flag.size);
 
-			std::stringstream ss{ s };
-			pt::ptree tree;
 			try {
-				pt::read_xml(ss, tree);
+				ryml::Tree tree = ryml::parse(c4::to_substr(s));
+				loadFromTree(&tree);
 			}
-			catch (std::exception&) {
+			catch (...) {
 				return false;
 			}
-			loadFromTree(&tree);
 			return !remote_url.empty();
 		}
 	}

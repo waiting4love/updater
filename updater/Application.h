@@ -5,6 +5,7 @@ class Application
 {
 private:
 	GlobalSettings global_settings;
+	bool show_dialog = false;
 
 	bool loadSettings(const std::string& fn);
 	bool loadSettingsFromSelf();

@@ -25,7 +25,7 @@ void Application::init()
 
 void Application::out(const std::string& s) const
 {
-	std::cout << s << std::endl;	
+	std::cout << s << std::endl;
 }
 void Application::err(const std::string& s) const
 {
@@ -34,6 +34,10 @@ void Application::err(const std::string& s) const
 void Application::err(int exitCode, const std::string& s) const
 {
 	err(s);
+	if (show_dialog)
+	{
+		MessageBoxA(NULL, s.c_str(), "Error", MB_ICONERROR);
+	}
 	std::exit(exitCode);
 }
 int Application::run()
@@ -53,10 +57,13 @@ int Application::run()
 		("before,b", progopt::value<std::string>(), "run a command before update")
 		("after,a", progopt::value<std::string>(), "run a command after update")
 		("wait,w", progopt::value<int>(), "process id, wait it exit (5s).")
+		("gui", "Show GUI dialog")
 		("restart", "restart software after updated, work with --wait argument");
 
 	progopt::variables_map vm;
 	progopt::store(progopt::command_line_parser{ args }.options(desc).run(), vm);
+
+	show_dialog = vm.find("gui") != vm.end();
 
 	std::string restart_request;
 	if (auto itr = vm.find("wait"); itr != vm.end())
@@ -169,6 +176,7 @@ void Application::doFetch(Reviser& reviser)
 		if (int x = cur - *pos; x > 0)
 		{
 			std::cout << std::string( x, '.' );
+			std::cout.flush();
 			*pos = cur;
 		}
 		return true;

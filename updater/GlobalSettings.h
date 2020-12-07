@@ -13,7 +13,7 @@ private:
 	void loadFromTree(void*);
 	std::string saveToString() const;
 public:
-	GlobalSettings();
+	GlobalSettings() = default;
 	void init();
 	bool loadFromFile(const std::string& file);
 	bool loadFromSelf();
