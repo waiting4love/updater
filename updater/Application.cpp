@@ -5,13 +5,11 @@
 #include <boost/algorithm/string.hpp>
 #include <ryml/ryml.hpp>
 #include <ryml/ryml_std.hpp>
+#include <psapi.h>
 
 namespace progopt = boost::program_options;
 
-std::unique_ptr<
-	std::remove_pointer<HANDLE>::type,
-	decltype(&::CloseHandle)>
-	make_handle_ptr(HANDLE h)
+auto make_handle_ptr(HANDLE h)
 {
 	return std::unique_ptr<
 		std::remove_pointer<HANDLE>::type,
@@ -72,15 +70,23 @@ int Application::run()
 		auto handle = make_handle_ptr(::OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, proc_id));
 		if (handle)
 		{
+			if (vm.find("restart") != vm.end())
+			{
+				DWORD size = MAX_PATH;
+				restart_request.resize(size);
+				if (QueryFullProcessImageNameA(handle.get(), 0, restart_request.data(), &size))
+				{
+					restart_request.resize(size);
+				}
+				else
+				{
+					restart_request.clear();
+				}
+			}
 			if (::WaitForSingleObject(handle.get(), 10000) != WAIT_OBJECT_0)
 			{
 				this->err(-1, "the process is not exit");
 			}
-
-			DWORD size = MAX_PATH;
-			restart_request.resize(size);
-			QueryFullProcessImageNameA(handle.get(), 0, restart_request.data(), &size);
-			restart_request.resize(size);
 		}
 		else
 		{
@@ -172,7 +178,7 @@ void Application::runCmd(const std::string& cmd)
 void Application::doFetch(Reviser& reviser)
 {
 	auto cb = [this, pos=std::make_shared<int>(0)](const TransferProgress& prog) {
-		int cur = 50 * (prog.local_objects + prog.received_objects) / std::max<unsigned>(1, prog.total_objects);
+		int cur = 50 * prog.received_objects / std::max<unsigned>(1, prog.total_objects);
 		if (int x = cur - *pos; x > 0)
 		{
 			std::cout << std::string( x, '.' );

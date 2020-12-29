@@ -388,7 +388,7 @@ static bool __stdcall Reviser_MessageCallback(const char* str, void* param)
 {
 	auto msgList = (MessageList*)param;
 	msgList->push_back(str);
-	return true;
+	return msgList->size() < 8;
 }
 
 static bool __stdcall Reviser_DiffCallback(const char* file, FileComparationDelta delta, void* param)
