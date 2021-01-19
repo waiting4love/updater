@@ -6,6 +6,9 @@
 #include <thread>
 #include <future>
 #include <atomic>
+#include <mutex>
+#include <condition_variable>
+#include <codecvt>
 #include <ryml/ryml.hpp>
 #include <ryml/ryml_std.hpp>
 
@@ -74,6 +77,9 @@ private:
     bool Disabled = false;
     std::thread CheckThread;
     std::atomic_bool Terminated{ false };
+    VersionInformation VersionInfo;
+    mutable std::mutex VersionInfoMutex;       
+    std::condition_variable VersionInfoReady;
 public:
     void setUpdateExe(LPCTSTR file) { lstrcpyn(ExeFile, file, MAX_PATH); }
     LPCTSTR getUpdateExe() const { return ExeFile; }
@@ -143,8 +149,138 @@ public:
 
         return false;
     }
+    VersionInformation getVersionInfo()
+    {
+        VersionInformation res;
+        std::lock_guard<std::mutex> lg(VersionInfoMutex);
+        res = VersionInfo;
+        return res;
+    }
+    bool waitVersionInfo(int timeout)
+    {
+        std::unique_lock<std::mutex> lk(VersionInfoMutex);
+        if (!VersionInfo.isEmpty()) return true;
+        return VersionInfoReady.wait_for(lk, std::chrono::milliseconds(timeout), [this]() { return !VersionInfo.isEmpty(); });
+    }
+    bool isNewVersionReady() const
+    {
+        std::lock_guard<std::mutex> lg(VersionInfoMutex);
+        return VersionInfo.isNewVersionReady();
+    }
 private:
-    std::tuple<int, std::string> executeCommand(LPCTSTR Command, LPCTSTR Args)
+    // 产生支持异步的管道
+	static BOOL APIENTRY CreatePipeEx(
+            OUT LPHANDLE lpReadPipe,
+            OUT LPHANDLE lpWritePipe,
+            IN LPSECURITY_ATTRIBUTES lpPipeAttributes,
+            IN DWORD nSize,
+            DWORD dwReadMode,
+            DWORD dwWriteMode
+        )
+        /*++
+        Routine Description:
+            The CreatePipeEx API is used to create an anonymous pipe I/O device.
+            Unlike CreatePipe FILE_FLAG_OVERLAPPED may be specified for one or
+            both handles.
+            Two handles to the device are created.  One handle is opened for
+            reading and the other is opened for writing.  These handles may be
+            used in subsequent calls to ReadFile and WriteFile to transmit data
+            through the pipe.
+        Arguments:
+            lpReadPipe - Returns a handle to the read side of the pipe.  Data
+                may be read from the pipe by specifying this handle value in a
+                subsequent call to ReadFile.
+            lpWritePipe - Returns a handle to the write side of the pipe.  Data
+                may be written to the pipe by specifying this handle value in a
+                subsequent call to WriteFile.
+            lpPipeAttributes - An optional parameter that may be used to specify
+                the attributes of the new pipe.  If the parameter is not
+                specified, then the pipe is created without a security
+                descriptor, and the resulting handles are not inherited on
+                process creation.  Otherwise, the optional security attributes
+                are used on the pipe, and the inherit handles flag effects both
+                pipe handles.
+            nSize - Supplies the requested buffer size for the pipe.  This is
+                only a suggestion and is used by the operating system to
+                calculate an appropriate buffering mechanism.  A value of zero
+                indicates that the system is to choose the default buffering
+                scheme.
+        Return Value:
+            TRUE - The operation was successful.
+            FALSE/NULL - The operation failed. Extended error status is available
+                using GetLastError.
+        --*/
+
+    {
+        static volatile long PipeSerialNumber = 1;
+
+        HANDLE ReadPipeHandle;
+        HANDLE WritePipeHandle;
+        DWORD dwError;
+        TCHAR PipeNameBuffer[MAX_PATH];
+
+        //
+        // Only one valid OpenMode flag - FILE_FLAG_OVERLAPPED
+        //
+
+        if ((dwReadMode | dwWriteMode) & (~FILE_FLAG_OVERLAPPED)) {
+            SetLastError(ERROR_INVALID_PARAMETER);
+            return FALSE;
+        }
+
+        //
+        //  Set the default timeout to 120 seconds
+        //
+
+        if (nSize == 0) {
+            nSize = 4096;
+        }
+
+        wsprintf(PipeNameBuffer,
+            _T("\\\\.\\Pipe\\RemoteExeAnon.%08x.%08x"),
+            GetCurrentProcessId(),
+            InterlockedIncrement(&PipeSerialNumber)
+        );
+
+        ReadPipeHandle = CreateNamedPipe(
+            PipeNameBuffer,
+            PIPE_ACCESS_INBOUND | dwReadMode,
+            PIPE_TYPE_BYTE | PIPE_WAIT,
+            1,             // Number of pipes
+            nSize,         // Out buffer size
+            nSize,         // In buffer size
+            120 * 1000,    // Timeout in ms
+            lpPipeAttributes
+        );
+
+        if (!ReadPipeHandle) {
+            return FALSE;
+        }
+
+        WritePipeHandle = CreateFile(
+            PipeNameBuffer,
+            GENERIC_WRITE,
+            0,                         // No sharing
+            lpPipeAttributes,
+            OPEN_EXISTING,
+            FILE_ATTRIBUTE_NORMAL | dwWriteMode,
+            NULL                       // Template file
+        );
+
+        if (INVALID_HANDLE_VALUE == WritePipeHandle) {
+            dwError = GetLastError();
+            CloseHandle(ReadPipeHandle);
+            SetLastError(dwError);
+            return FALSE;
+        }
+
+        *lpReadPipe = ReadPipeHandle;
+        *lpWritePipe = WritePipeHandle;
+        return(TRUE);
+    }
+
+
+    static std::tuple<int, std::string> executeCommand(LPCTSTR Command, LPCTSTR Args, const volatile std::atomic_bool& Terminated)
     {
         CHandle hRead;
         CHandle hWrite;
@@ -154,7 +290,7 @@ private:
         sa.lpSecurityDescriptor = NULL;
         sa.bInheritHandle = TRUE;
 
-        if (!::CreatePipe(&hRead.m_h, &hWrite.m_h, &sa, 0))
+        if(!CreatePipeEx(&hRead.m_h, &hWrite.m_h, &sa, 0, FILE_FLAG_OVERLAPPED, FILE_FLAG_OVERLAPPED))
         {
             WindowsError::throwLastError("CreatePipe");
         }
@@ -177,42 +313,60 @@ private:
         {
             TCHAR Args2[MAX_PATH * 2] = { 0 };
             if (Args[0] != ' ')
-            {
                 Args2[0] = ' ';
-            }
             _tcscat_s(Args2, Args);
             res = CreateProcess(Command, Args2, NULL, NULL, TRUE, NULL, NULL, NULL, &si, &pi);
         }
 
         if (res == FALSE)
-        {
             WindowsError::throwLastError("CreateProcess");
-        }
         
-        // create thread to receive console
-        auto future_str = std::async(std::launch::async, [&hRead, this]() {
-            std::stringstream ss;
+        // If they are not explicitly closed, there is no way to recognize that the child process has ended.
+        hWrite.Close();
+        const DWORD span = 100;
+
+        CHandle hEvent{ ::CreateEvent(NULL, TRUE, TRUE, NULL) };
+        OVERLAPPED oOverlap = { 0 };
+        oOverlap.hEvent = hEvent;
+
+        std::stringstream ss;
+        while (!Terminated)
+        {
             DWORD bytesRead;
-            char buffer[128] = { 0 };
-            while (!Terminated && ReadFile(hRead, buffer, 128, &bytesRead, NULL))
+            char c;
+            res = ReadFile(hRead, &c, 1, &bytesRead, &oOverlap);
+            if (res == FALSE && GetLastError() == ERROR_IO_PENDING)
+            {
+                while (!Terminated && ::WaitForSingleObject(hEvent, span) == WAIT_TIMEOUT);
+                if (!Terminated)
+                {
+					res = GetOverlappedResult(
+						hRead, // handle to pipe 
+						&oOverlap, // OVERLAPPED structure 
+						&bytesRead,            // bytes transferred 
+						FALSE);
+                }
+            }
+
+            if (res == TRUE)
             {
                 if (bytesRead == 0) break;
-                ss.write(buffer, bytesRead);
+                ss.write(&c, 1);
             }
-            return ss.str();
-        });
+            else
+            {
+                break;
+            }
+        }
 
-        const DWORD span = 100;
-        while (!Terminated && ::WaitForSingleObject(pi.hProcess, span) == WAIT_TIMEOUT );
-        hWrite.Close();
-        future_str.wait();
+        while (!Terminated && ::WaitForSingleObject(pi.hProcess, span) == WAIT_TIMEOUT);
 
         std::tuple<int, std::string> result;
         if (!Terminated)
         {
             DWORD exitCode = 0;
             ::GetExitCodeProcess(pi.hProcess, &exitCode);
-            result = std::make_tuple( exitCode, future_str.get());
+            result = std::make_tuple(exitCode, ss.str());
         }
         else
         {
@@ -232,18 +386,18 @@ private:
         }
         fs::copy(sourceDir, destDir, copyOptions);
     }
-    void fetch()
+    void fetch() const
     {
         if (!isAvailable()) return;
-        auto [code, output] = executeCommand(getUpdateExe(), _T("--fetch"));
+        auto [code, output] = executeCommand(getUpdateExe(), _T("--fetch"), Terminated);
         if (code != 0)
         {
             throw std::exception(output.c_str());
         }
     }
-    VersionInformation readVersionInfomation()
+    VersionInformation readVersionInfomation() const
     {
-        auto [code, output] = executeCommand(getUpdateExe(), _T("-l"));
+        auto [code, output] = executeCommand(getUpdateExe(), _T("-l"), Terminated);
         if (code == 0)
         {
             VersionInformation vi;
@@ -274,12 +428,23 @@ private:
             {
                 fetch();
                 auto vd = readVersionInfomation();
-                if (VersionReceived) VersionReceived(vd);
+                {
+                    std::lock_guard<std::mutex> lg(VersionInfoMutex);
+                    VersionInfo = std::move(vd);
+                }
+                VersionInfoReady.notify_one();
+                if (VersionReceived) VersionReceived();
+
             }
             catch (const std::exception& ex)
             {
                 auto vd = VersionInformation::createError(ex.what());
-                if (VersionReceived) VersionReceived(vd);
+                {
+                    std::lock_guard<std::mutex> lg(VersionInfoMutex);
+                    VersionInfo = std::move(vd);
+                }
+                VersionInfoReady.notify_one();
+                if (VersionReceived) VersionReceived();
             }
 
             const DWORD span = 100;
@@ -323,9 +488,13 @@ StringList getStringLines(const ryml::NodeRef& node)
     StringList res;
     if (node.is_seq())
     {
-        for (const auto &s : node)
+        for (const auto &item : node)
         {
-            res.push_back(s.val().str);
+            String s;
+            if (c4::from_chars(item.val(), &s))
+            {
+                res.push_back(s);
+            }
         }
     }
     return res;
@@ -366,4 +535,86 @@ bool VersionInformation::parse(const std::string& s)
 bool VersionDetail::isEmpty() const
 {
     return Local.empty() && Remote.empty() && New.empty();
+}
+///////////////////////////////////////////////////////
+UpdateService::UpdateService()
+{
+    _Impl = new Impl;
+    TCHAR buf[MAX_PATH];
+    ::GetModuleFileName(NULL, buf, MAX_PATH);
+    ::PathRemoveFileSpec(buf);
+    ::PathAppend(buf, _T("update\\updater.exe"));
+    _Impl->setUpdateExe(buf);
+}
+
+UpdateService::~UpdateService()
+{
+    delete _Impl;
+}
+
+void UpdateService::setUpdateExe(String exe_file)
+{
+    auto u16_conv = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>{}.from_bytes(exe_file);
+    _Impl->setUpdateExe(u16_conv.c_str());
+}
+
+const String& UpdateService::getUpdateExe() const
+{   
+    auto u8_conv = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>{}.to_bytes(_Impl->getUpdateExe());
+    return u8_conv.c_str();
+}
+
+void UpdateService::setCheckInterval(int ms)
+{
+    _Impl->setCheckInterval(ms);
+}
+
+int UpdateService::getCheckInterval() const
+{
+    return _Impl->getCheckInterval();
+}
+
+void UpdateService::setRestartAppFlag(bool r)
+{
+    _Impl->setRestartAppFlag(r);
+}
+
+void UpdateService::start()
+{
+    _Impl->start();
+}
+
+void UpdateService::stop()
+{
+    _Impl->stop();
+}
+
+void UpdateService::setVersionReceivedHandler(VersionReceivedHandler func)
+{
+    _Impl->setVersionReceivedHandler(std::move(func));
+}
+
+bool UpdateService::isAvailable() const
+{
+    return _Impl->isAvailable();
+}
+
+bool UpdateService::doUpdate() const
+{
+    return _Impl->doUpdate();
+}
+
+VersionInformation UpdateService::getVersionInfo()
+{
+    return _Impl->getVersionInfo();
+}
+
+bool UpdateService::waitVersionInfo(int timeout)
+{
+    return _Impl->waitVersionInfo(timeout);
+}
+
+bool UpdateService::isNewVersionReady() const
+{
+    return _Impl->isNewVersionReady();
 }

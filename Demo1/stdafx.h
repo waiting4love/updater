@@ -10,6 +10,7 @@
 #define _WIN32_WINNT	0x0601
 #define _WIN32_IE	0x0700
 #define _RICHEDIT_VER	0x0500
+#define _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
 
 #include <atlbase.h>
 #include <atlapp.h>

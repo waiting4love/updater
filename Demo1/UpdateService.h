@@ -29,9 +29,12 @@ struct VersionInformation
 class UpdateService
 {
 public:
-	using VersionReceivedHandler = std::function<void(const VersionInformation&)>;
+	using VersionReceivedHandler = std::function<void()>;
 
 	UpdateService();
+	~UpdateService();
+	UpdateService(const UpdateService&) = delete;
+	UpdateService& operator=(const UpdateService&) = delete;
 
 	void setUpdateExe(String exe_file);
 	const String& getUpdateExe() const;
@@ -43,6 +46,9 @@ public:
 	void setVersionReceivedHandler(VersionReceivedHandler);
 	bool isAvailable() const;
 	bool doUpdate() const;
+	VersionInformation getVersionInfo();
+	bool waitVersionInfo(int timeout);
+	bool isNewVersionReady() const;
 private:
 	class Impl;
 	Impl* _Impl;

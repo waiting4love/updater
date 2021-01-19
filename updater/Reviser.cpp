@@ -127,7 +127,16 @@ bool Reviser::Impl::open()
 		// 如果没有得到，建立
 		error = git_remote_create(&remote, repo, remote_site_name.c_str(), remote_site_url.c_str());
 	}
-	if (error < 0) return false;
+	else if (error >= 0)
+	{
+		auto cur_remote_url = git_remote_url(remote);
+		if (strcmp(cur_remote_url, remote_site_url.c_str()) != 0)
+		{
+			git_remote_free(remote);
+			error = git_remote_set_url(repo, remote_site_name.c_str(), remote_site_url.c_str());
+			git_remote_lookup(&remote, repo, remote_site_name.c_str());
+		}
+	}
 
 	return error >= 0;
 }
