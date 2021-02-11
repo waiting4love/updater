@@ -1,0 +1,21 @@
+LIBRARY
+EXPORTS
+	Update_Initialize
+	Update_Uninitialize
+	Update_IsAvailable
+	Update_StartWatch
+	Update_StopWatch
+	Update_Wait
+	Update_Perform
+	Update_IsError
+	Update_IsNewVersionReady
+	Update_IsNothing
+	Update_GetVersionMessage
+	VersionMessage_Destory
+	VersionMessage_IsError
+	VersionMessage_IsNewVersionReady
+	VersionMessage_IsNothing
+	VersionMessage_GetRemoteMessage
+	VersionMessage_GetLocalMessage
+	VersionMessage_GetWhatsNewMessage
+	VersionMessage_GetErrorMessage

@@ -6,6 +6,14 @@
 #include "resource.h"
 
 #include "MainDlg.h"
+#include "../UpdateService/Exports.h"
+#pragma comment(lib, "UpdateService.lib")
+
+void __stdcall VersionInfoReceived(void* param)
+{
+	auto dlg = (CMainDlg*)param;
+	dlg->OnVersionInformationReceived();
+}
 
 LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
@@ -18,9 +26,8 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 	HICON hIconSmall = AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON));
 	SetIcon(hIconSmall, FALSE);
 
-	UpdateService.setCheckInterval(60000);
-	UpdateService.setVersionReceivedHandler([this]() { OnVersionInformationReceived(); });
-	UpdateService.start();
+	Update_Initialize();
+	Update_StartWatch(60'000, VersionInfoReceived, this);
 	return TRUE;
 }
 
@@ -31,27 +38,27 @@ void CMainDlg::OnVersionInformationReceived()
 
 LRESULT CMainDlg::OnVersionReceived(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
-	auto vi = UpdateService.getVersionInfo();
-	String s;
-	if (vi.isError())
+	char s[2048] = { 0 };
+	auto vi = Update_GetVersionMessage();
+	if (VersionMessage_IsError(vi))
 	{
-		s = vi.ErrorMessage;
+		VersionMessage_GetErrorMessage(vi, s, sizeof(s));
 	}
-	else if (vi.isNewVersionReady())
+	else if (VersionMessage_IsNewVersionReady(vi))
 	{
-		for (const auto& i : vi.Status.Remote)
-		{
-			s = s + i + "\n";
-		}
+		VersionMessage_GetRemoteMessage(vi, s, sizeof(s));
+	}
+	else if (VersionMessage_IsNothing(vi))
+	{
+		lstrcpyA(s, "No information received");
 	}
 	else
 	{
-		if (!vi.Status.Local.empty())
-			s = "This is latest version: " + vi.Status.Local.front();
-		else
-			s = "No information received";
+		VersionMessage_GetLocalMessage(vi, s, sizeof(s));
 	}
-	::SetDlgItemTextA(m_hWnd, IDC_STATIC_VERSION, s.c_str());
+	VersionMessage_Destory(vi);
+	::SetDlgItemTextA(m_hWnd, IDC_STATIC_VERSION, s);
+
 	return 0;
 }
 
@@ -64,23 +71,24 @@ LRESULT CMainDlg::OnAppAbout(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*
 
 LRESULT CMainDlg::OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	// TODO: Add validation code 
+	Update_StopWatch();
+	if (Update_IsNewVersionReady())
+	{
+		Update_Perform(false);
+	}
 	EndDialog(wID);
 	return 0;
 }
 
 LRESULT CMainDlg::OnCancel(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
+	Update_StopWatch();
 	EndDialog(wID);
 	return 0;
 }
 
 LRESULT CMainDlg::OnDestroy(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
-	UpdateService.stop();
-	if (UpdateService.isNewVersionReady())
-	{
-		UpdateService.doUpdate();
-	}
+	Update_Uninitialize();
 	return 0;
 }

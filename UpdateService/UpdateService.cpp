@@ -1,4 +1,4 @@
-#include "stdafx.h"
+#include "pch.h"
 #include "UpdateService.h"
 #include <filesystem>
 #include <tuple>
@@ -9,8 +9,8 @@
 #include <mutex>
 #include <condition_variable>
 #include <codecvt>
-#include <ryml/ryml.hpp>
-#include <ryml/ryml_std.hpp>
+#include <shellapi.h>
+#include "YamlDom.h"
 
 namespace fs = std::filesystem;
 
@@ -152,7 +152,7 @@ public:
     VersionInformation getVersionInfo()
     {
         VersionInformation res;
-        std::lock_guard<std::mutex> lg(VersionInfoMutex);
+        std::scoped_lock<std::mutex> lg(VersionInfoMutex);
         res = VersionInfo;
         return res;
     }
@@ -164,8 +164,18 @@ public:
     }
     bool isNewVersionReady() const
     {
-        std::lock_guard<std::mutex> lg(VersionInfoMutex);
+        std::scoped_lock<std::mutex> lg(VersionInfoMutex);
         return VersionInfo.isNewVersionReady();
+    }
+    bool isError() const
+    {
+        std::scoped_lock<std::mutex> lg(VersionInfoMutex);
+        return VersionInfo.isError();
+    }
+    bool IsNothing() const
+    {
+        std::scoped_lock<std::mutex> lg(VersionInfoMutex);
+        return VersionInfo.isEmpty();
     }
 private:
     // 产生支持异步的管道
@@ -483,53 +493,81 @@ VersionInformation VersionInformation::createError(String message)
     return res;
 }
 
-StringList getStringLines(const ryml::NodeRef& node)
-{
-    StringList res;
-    if (node.is_seq())
-    {
-        for (const auto &item : node)
-        {
-            String s;
-            if (c4::from_chars(item.val(), &s))
-            {
-                res.push_back(s);
-            }
-        }
-    }
-    return res;
-}
+//StringList getStringLines(const ryml::NodeRef& node)
+//{
+//    StringList res;
+//    if (node.is_seq())
+//    {
+//        for (const auto &item : node)
+//        {
+//            String s;
+//            if (c4::from_chars(item.val(), &s))
+//            {
+//                res.push_back(s);
+//            }
+//        }
+//    }
+//    return res;
+//}
 
 bool VersionInformation::parse(const std::string& s)
 {
-    ryml::Tree tree = ryml::parse(c4::to_csubstr(s));
-    if (tree.size() <= 2) return false;
-    if (auto root = tree.rootref(); root.valid() && root.has_child("Status"))
-    {
-        auto status_node = root["Status"];
-        if (status_node.has_child("Local"))
-        {
-            Status.Local = getStringLines(status_node["Local"]);
-        }
-        if (status_node.has_child("Remote"))
-        {
-            Status.Remote = getStringLines(status_node["Remote"]);
-        }
-        if (status_node.has_child("New"))
-        {
-            auto new_node = status_node["New"];
-            if (new_node.is_seq())
-            {
-                for (const auto& x: new_node)
-                {
-                    Status.New.push_back(getStringLines( x ));
-                }
-            }
-        }
+    try {
+        auto tree = yaml::parseString(s);
+        auto& status = tree.getMapping().getMapping("Status");
+        auto& local = status.getSequence("Local");
+        auto& remote = status.getSequence("Remote");
+        auto& whatnew = status.getSequence("New");
 
+        Status.Local.clear();
+        std::transform(local.begin(), local.end(), std::back_inserter(Status.Local), [](auto& i) {return i.getString(); });
+
+        Status.Remote.clear();
+        std::transform(remote.begin(), remote.end(), std::back_inserter(Status.Remote), [](auto& i) {return i.getString(); });
+
+        Status.New.clear();
+        std::transform(
+            whatnew.begin(), whatnew.end(), std::back_inserter(Status.New),
+            [](auto& i) {
+                StringList lst;
+                auto& seq = i.getSequence();
+                std::transform(seq.begin(), seq.end(), std::back_inserter(lst), [](auto& i) {return i.getString(); });
+                return lst;
+            }
+        );
         return true;
     }
-    return false;
+    catch (...) {
+        return false;
+    }
+    //ryml::Tree tree = ryml::parse(c4::to_csubstr(s));
+    //if (tree.size() <= 2) return false;
+    //if (auto root = tree.rootref(); root.valid() && root.has_child("Status"))
+    //{
+    //    auto status_node = root["Status"];
+    //    if (status_node.has_child("Local"))
+    //    {
+    //        Status.Local = getStringLines(status_node["L ocal"]);
+    //    }
+    //    if (status_node.has_child("Remote"))
+    //    {
+    //        Status.Remote = getStringLines(status_node["Remote"]);
+    //    }
+    //    if (status_node.has_child("New"))
+    //    {
+    //        auto new_node = status_node["New"];
+    //        if (new_node.is_seq())
+    //        {
+    //            for (const auto& x: new_node)
+    //            {
+    //                Status.New.push_back(getStringLines( x ));
+    //            }
+    //        }
+    //    }
+
+    //    return true;
+    //}
+    //return false;
 }
 
 bool VersionDetail::isEmpty() const
@@ -545,6 +583,7 @@ UpdateService::UpdateService()
     ::PathRemoveFileSpec(buf);
     ::PathAppend(buf, _T("update\\updater.exe"));
     _Impl->setUpdateExe(buf);
+    _Impl->setCheckInterval(10 * 60 * 1000);
 }
 
 UpdateService::~UpdateService()
@@ -552,17 +591,17 @@ UpdateService::~UpdateService()
     delete _Impl;
 }
 
-void UpdateService::setUpdateExe(String exe_file)
-{
-    auto u16_conv = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>{}.from_bytes(exe_file);
-    _Impl->setUpdateExe(u16_conv.c_str());
-}
-
-const String& UpdateService::getUpdateExe() const
-{   
-    auto u8_conv = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>{}.to_bytes(_Impl->getUpdateExe());
-    return u8_conv.c_str();
-}
+//void UpdateService::setUpdateExe(String exe_file)
+//{
+//    auto u16_conv = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>{}.from_bytes(exe_file);
+//    _Impl->setUpdateExe(u16_conv.c_str());
+//}
+//
+//const String& UpdateService::getUpdateExe() const
+//{   
+//    auto u8_conv = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>{}.to_bytes(_Impl->getUpdateExe());
+//    return u8_conv.c_str();
+//}
 
 void UpdateService::setCheckInterval(int ms)
 {
@@ -617,4 +656,14 @@ bool UpdateService::waitVersionInfo(int timeout)
 bool UpdateService::isNewVersionReady() const
 {
     return _Impl->isNewVersionReady();
+}
+
+bool UpdateService::isError() const
+{
+    return _Impl->isError();
+}
+
+bool UpdateService::IsNothing() const
+{
+    return _Impl->IsNothing();
 }

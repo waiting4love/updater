@@ -3,13 +3,12 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #pragma once
-#include "UpdateService.h"
+
 constexpr UINT WM_VERSION_RECEIVED = WM_USER + 1;
 class CMainDlg : public CDialogImpl<CMainDlg>
 {
 public:
 	enum { IDD = IDD_MAINDLG };
-	UpdateService UpdateService;
 	BEGIN_MSG_MAP(CMainDlg)
 		MESSAGE_HANDLER(WM_INITDIALOG, OnInitDialog)
 		COMMAND_ID_HANDLER(ID_APP_ABOUT, OnAppAbout)

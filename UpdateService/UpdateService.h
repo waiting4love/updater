@@ -49,6 +49,8 @@ public:
 	VersionInformation getVersionInfo();
 	bool waitVersionInfo(int timeout);
 	bool isNewVersionReady() const;
+	bool isError() const;
+	bool IsNothing() const;
 private:
 	class Impl;
 	Impl* _Impl;
