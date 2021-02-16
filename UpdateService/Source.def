@@ -11,6 +11,7 @@ EXPORTS
 	Update_IsNewVersionReady
 	Update_IsNothing
 	Update_GetVersionMessage
+	Update_MoveVersionMessage
 	VersionMessage_Destory
 	VersionMessage_IsError
 	VersionMessage_IsNewVersionReady
@@ -19,3 +20,14 @@ EXPORTS
 	VersionMessage_GetLocalMessage
 	VersionMessage_GetWhatsNewMessage
 	VersionMessage_GetErrorMessage
+	VersionMessage_ShowBox
+	VersionMessageLabel_Create
+	VersionMessageLabel_Destory
+	VersionMessageLabel_GetHandle
+	VersionMessageLabel_GetVersionMessageRef
+	VersionMessageLabel_SetShowingLabelEvent
+	VersionMessageLabel_EnableShowBoxOnClick
+	VersionMessageLabel_EnableAutoSize
+	VersionMessageLabel_SetAlignment
+	VersionMessageLabel_SetColor
+	VersionMessageLabel_SetFont

@@ -3,7 +3,7 @@
 #include <string>
 #include <functional>
 
-using String = std::string;
+using String = std::wstring;
 using StringList = std::vector<String>;
 
 struct VersionDetail
@@ -44,9 +44,11 @@ public:
 	void start();
 	void stop();
 	void setVersionReceivedHandler(VersionReceivedHandler);
+	void removeVersionReceivedHandler();
 	bool isAvailable() const;
 	bool doUpdate() const;
 	VersionInformation getVersionInfo();
+	VersionInformation moveVersionInfo();
 	bool waitVersionInfo(int timeout);
 	bool isNewVersionReady() const;
 	bool isError() const;

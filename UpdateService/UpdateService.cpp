@@ -9,6 +9,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <codecvt>
+#include "StringAlgo.h"
 #include <shellapi.h>
 #include "YamlDom.h"
 
@@ -67,6 +68,12 @@ struct WindowsError {
     }
 };
 
+class ExternalError : public std::runtime_error
+{
+public:
+    using std::runtime_error::runtime_error;
+};
+
 class UpdateService::Impl
 {
 private:
@@ -101,6 +108,8 @@ public:
         }
     }
     void setVersionReceivedHandler(VersionReceivedHandler func) { VersionReceived = std::move(func); }
+    void removeVersionReceivedHandler() { VersionReceived = VersionReceivedHandler{}; }
+    
     bool isAvailable() const
     {
         return !Disabled && fs::exists(ExeFile);
@@ -154,6 +163,13 @@ public:
         VersionInformation res;
         std::scoped_lock<std::mutex> lg(VersionInfoMutex);
         res = VersionInfo;
+        return res;
+    }
+    VersionInformation moveVersionInfo()
+    {
+        VersionInformation res;
+        std::scoped_lock<std::mutex> lg(VersionInfoMutex);
+        std::swap(res, VersionInfo);
         return res;
     }
     bool waitVersionInfo(int timeout)
@@ -402,7 +418,7 @@ private:
         auto [code, output] = executeCommand(getUpdateExe(), _T("--fetch"), Terminated);
         if (code != 0)
         {
-            throw std::exception(output.c_str());
+            throw ExternalError{ output };
         }
     }
     VersionInformation readVersionInfomation() const
@@ -413,13 +429,13 @@ private:
             VersionInformation vi;
             if (!vi.parse(output))
             {
-                throw std::exception("cannot parse the output!");
+                throw ExternalError{ "Cannot parse the output!" };
             }
             return vi;
         }
         else
         {
-            throw std::exception(output.c_str());
+            throw ExternalError{ output };
         }
     }
     void resetTerminate()
@@ -439,7 +455,7 @@ private:
                 fetch();
                 auto vd = readVersionInfomation();
                 {
-                    std::lock_guard<std::mutex> lg(VersionInfoMutex);
+                    std::scoped_lock<std::mutex> lg(VersionInfoMutex);
                     VersionInfo = std::move(vd);
                 }
                 VersionInfoReady.notify_one();
@@ -448,9 +464,9 @@ private:
             }
             catch (const std::exception& ex)
             {
-                auto vd = VersionInformation::createError(ex.what());
+                auto vd = VersionInformation::createError(to_wstring(ex.what()));
                 {
-                    std::lock_guard<std::mutex> lg(VersionInfoMutex);
+                    std::scoped_lock<std::mutex> lg(VersionInfoMutex);
                     VersionInfo = std::move(vd);
                 }
                 VersionInfoReady.notify_one();
@@ -493,23 +509,6 @@ VersionInformation VersionInformation::createError(String message)
     return res;
 }
 
-//StringList getStringLines(const ryml::NodeRef& node)
-//{
-//    StringList res;
-//    if (node.is_seq())
-//    {
-//        for (const auto &item : node)
-//        {
-//            String s;
-//            if (c4::from_chars(item.val(), &s))
-//            {
-//                res.push_back(s);
-//            }
-//        }
-//    }
-//    return res;
-//}
-
 bool VersionInformation::parse(const std::string& s)
 {
     try {
@@ -520,10 +519,10 @@ bool VersionInformation::parse(const std::string& s)
         auto& whatnew = status.getSequence("New");
 
         Status.Local.clear();
-        std::transform(local.begin(), local.end(), std::back_inserter(Status.Local), [](auto& i) {return i.getString(); });
+        std::transform(local.begin(), local.end(), std::back_inserter(Status.Local), [](auto& i) {return to_wstring(i.getString(), CP_ACP); });
 
         Status.Remote.clear();
-        std::transform(remote.begin(), remote.end(), std::back_inserter(Status.Remote), [](auto& i) {return i.getString(); });
+        std::transform(remote.begin(), remote.end(), std::back_inserter(Status.Remote), [](auto& i) {return to_wstring(i.getString(), CP_ACP); });
 
         Status.New.clear();
         std::transform(
@@ -531,7 +530,7 @@ bool VersionInformation::parse(const std::string& s)
             [](auto& i) {
                 StringList lst;
                 auto& seq = i.getSequence();
-                std::transform(seq.begin(), seq.end(), std::back_inserter(lst), [](auto& i) {return i.getString(); });
+                std::transform(seq.begin(), seq.end(), std::back_inserter(lst), [](auto& i) {return to_wstring(i.getString()); });
                 return lst;
             }
         );
@@ -540,34 +539,6 @@ bool VersionInformation::parse(const std::string& s)
     catch (...) {
         return false;
     }
-    //ryml::Tree tree = ryml::parse(c4::to_csubstr(s));
-    //if (tree.size() <= 2) return false;
-    //if (auto root = tree.rootref(); root.valid() && root.has_child("Status"))
-    //{
-    //    auto status_node = root["Status"];
-    //    if (status_node.has_child("Local"))
-    //    {
-    //        Status.Local = getStringLines(status_node["L ocal"]);
-    //    }
-    //    if (status_node.has_child("Remote"))
-    //    {
-    //        Status.Remote = getStringLines(status_node["Remote"]);
-    //    }
-    //    if (status_node.has_child("New"))
-    //    {
-    //        auto new_node = status_node["New"];
-    //        if (new_node.is_seq())
-    //        {
-    //            for (const auto& x: new_node)
-    //            {
-    //                Status.New.push_back(getStringLines( x ));
-    //            }
-    //        }
-    //    }
-
-    //    return true;
-    //}
-    //return false;
 }
 
 bool VersionDetail::isEmpty() const
@@ -633,6 +604,11 @@ void UpdateService::setVersionReceivedHandler(VersionReceivedHandler func)
     _Impl->setVersionReceivedHandler(std::move(func));
 }
 
+void UpdateService::removeVersionReceivedHandler()
+{
+    _Impl->removeVersionReceivedHandler();
+}
+
 bool UpdateService::isAvailable() const
 {
     return _Impl->isAvailable();
@@ -646,6 +622,11 @@ bool UpdateService::doUpdate() const
 VersionInformation UpdateService::getVersionInfo()
 {
     return _Impl->getVersionInfo();
+}
+
+VersionInformation UpdateService::moveVersionInfo()
+{
+    return _Impl->moveVersionInfo();
 }
 
 bool UpdateService::waitVersionInfo(int timeout)

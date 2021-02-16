@@ -6,6 +6,8 @@
 #include "resource.h"
 
 #include "MainDlg.h"
+#include <string>
+#include <array>
 #include "../UpdateService/Exports.h"
 #pragma comment(lib, "UpdateService.lib")
 
@@ -13,6 +15,39 @@ void __stdcall VersionInfoReceived(void* param)
 {
 	auto dlg = (CMainDlg*)param;
 	dlg->OnVersionInformationReceived();
+}
+
+void __stdcall CloseApp(void* param)
+{
+	auto dlg = (CMainDlg*)param;
+	dlg->EndDialog(0);
+}
+
+void __stdcall MsgToText(VersionMessageLabel label, void*, wchar_t* text)
+{
+	auto msg = VersionMessageLabel_GetVersionMessageRef(label);
+	if (VersionMessage_IsError(msg))
+	{
+		VersionMessage_GetErrorMessage(msg, text, MAX_LABLE_LEN);
+	}
+	else if (VersionMessage_IsNewVersionReady(msg))
+	{
+		wchar_t buf[2048] = { 0 };
+		VersionMessage_GetRemoteMessage(msg, buf, 2048);
+		if (auto* ptr = wcschr(buf, L'\n'); ptr) *ptr = 0;
+		lstrcpynW(text, buf, MAX_LABLE_LEN);
+	}
+	else if (VersionMessage_IsNothing(msg))
+	{
+		lstrcpy(text, _T("Connecting..."));
+	}
+	else
+	{
+		wchar_t buf[2048] = { 0 };
+		VersionMessage_GetLocalMessage(msg, buf, 2048);
+		if (auto* ptr = wcschr(buf, L'\n'); ptr) *ptr = 0;
+		lstrcpynW(text, buf, MAX_LABLE_LEN);
+	}
 }
 
 LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
@@ -26,8 +61,20 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 	HICON hIconSmall = AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON));
 	SetIcon(hIconSmall, FALSE);
 
-	Update_Initialize();
-	Update_StartWatch(60'000, VersionInfoReceived, this);
+	RECT rc;
+	GetClientRect(&rc);
+	rc.right -= 10;
+	rc.top += 10;
+
+	//Update_Initialize();
+	auto lbl = VersionMessageLabel_Create(m_hWnd, &rc, 1001, true);
+	VersionMessageLabel_EnableAutoSize(lbl, true);
+	VersionMessageLabel_SetColor(lbl, ::GetSysColor(COLOR_HOTLIGHT));
+	VersionMessageLabel_SetAlignment(lbl, true, false);
+	VersionMessageLabel_SetFont(lbl, 260, L"Arial");
+	VersionMessageLabel_SetShowingLabelEvent(lbl, MsgToText, this);
+	VersionMessageLabel_EnableShowBoxOnClick(lbl, true, CloseApp, this);
+	//Update_StartWatch(60'000, VersionInfoReceived, this);
 	return TRUE;
 }
 
@@ -38,26 +85,27 @@ void CMainDlg::OnVersionInformationReceived()
 
 LRESULT CMainDlg::OnVersionReceived(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
-	char s[2048] = { 0 };
-	auto vi = Update_GetVersionMessage();
-	if (VersionMessage_IsError(vi))
-	{
-		VersionMessage_GetErrorMessage(vi, s, sizeof(s));
-	}
-	else if (VersionMessage_IsNewVersionReady(vi))
-	{
-		VersionMessage_GetRemoteMessage(vi, s, sizeof(s));
-	}
-	else if (VersionMessage_IsNothing(vi))
-	{
-		lstrcpyA(s, "No information received");
-	}
-	else
-	{
-		VersionMessage_GetLocalMessage(vi, s, sizeof(s));
-	}
-	VersionMessage_Destory(vi);
-	::SetDlgItemTextA(m_hWnd, IDC_STATIC_VERSION, s);
+	//char s[2048] = { 0 };
+	//auto vi = Update_GetVersionMessage();
+	//if (VersionMessage_IsError(vi))
+	//{
+	//	VersionMessage_GetErrorMessage(vi, s, sizeof(s));
+	//}
+	//else if (VersionMessage_IsNewVersionReady(vi))
+	//{
+	//	VersionMessage_GetRemoteMessage(vi, s, sizeof(s));
+	//}
+	//else if (VersionMessage_IsNothing(vi))
+	//{
+	//	lstrcpyA(s, "No information received");
+	//}
+	//else
+	//{
+	//	VersionMessage_GetLocalMessage(vi, s, sizeof(s));
+	//}
+	//VersionMessage_Destory(vi);
+	//::SetDlgItemTextA(m_hWnd, IDC_STATIC_VERSION, s);
+	//::InvalidateRect(GetDlgItem(1001), NULL, TRUE);
 
 	return 0;
 }
@@ -71,24 +119,37 @@ LRESULT CMainDlg::OnAppAbout(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*
 
 LRESULT CMainDlg::OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	Update_StopWatch();
-	if (Update_IsNewVersionReady())
-	{
-		Update_Perform(false);
-	}
+	//Update_StopWatch();
+	//if (Update_IsNewVersionReady())
+	//{
+	//	Update_Perform(false);
+	//}
 	EndDialog(wID);
 	return 0;
 }
 
 LRESULT CMainDlg::OnCancel(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
 {
-	Update_StopWatch();
+	//Update_StopWatch();
 	EndDialog(wID);
 	return 0;
 }
 
 LRESULT CMainDlg::OnDestroy(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
-	Update_Uninitialize();
+	//Update_Uninitialize();
+	return 0;
+}
+
+LRESULT CMainDlg::OnVersionClick(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/)
+{
+	//auto buttons = std::array{
+	//	L"Update", L"Later"
+	//};
+
+	//auto msg = Update_GetVersionMessage();
+	//int res = VersionMessage_ShowBox(msg, m_hWnd, L"For Demo, No matter click which button", buttons.data(), buttons.size());
+	//ATLTRACE("ShowBox Reture:%d", res);
+	//VersionMessage_Destory(msg);
 	return 0;
 }

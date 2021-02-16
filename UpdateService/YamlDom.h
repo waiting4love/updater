@@ -80,6 +80,18 @@ namespace yaml {
 		Sequence sequence_;
 	};
 
+	class parse_format_error : public std::logic_error
+	{
+	public:
+		using std::logic_error::logic_error;
+	};
+
+	class parse_unexpect_error : public parse_format_error
+	{
+	public:
+		using parse_format_error::parse_format_error;
+	};
+
 	Value parseFile(const char* filename);
 	Value parseString(std::string_view s);
 

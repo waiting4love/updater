@@ -33,6 +33,12 @@
     <ClInclude Include="YamlDom.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="UpdateStaticText.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="StringAlgo.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -61,6 +67,12 @@
     </ClCompile>
     <ClCompile Include="yaml-0.2.5\src\scanner.c">
       <Filter>yaml</Filter>
+    </ClCompile>
+    <ClCompile Include="UpdateStaticText.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="StringAlgo.cpp">
+      <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

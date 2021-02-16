@@ -2,12 +2,10 @@
 
 #include "yaml.h"
 #include <stdio.h>
-#include <stdexcept>
 #include <memory>
 #include <cstdarg>
 
 namespace yaml {
-
 	std::string format(const char* fmt, ...) {
 		va_list args, args_len;
 		va_start(args, fmt);
@@ -36,10 +34,10 @@ namespace yaml {
 			}
 		};
 
-		YamlEvent  getNextEvent() {
+		YamlEvent getNextEvent() {
 			yaml_event_t event;
 			if (!yaml_parser_parse(&parser_, &event)) {
-				throw std::domain_error(format("Error parsing yaml %d@%d: %s",
+				throw parse_format_error(format("Error parsing yaml %d@%d: %s",
 						(int)parser_.problem_mark.line, (int)parser_.problem_mark.column,
 						parser_.problem));
 			}
@@ -67,7 +65,7 @@ namespace yaml {
 				case YAML_SEQUENCE_END_EVENT:
 					return seq;
 				default:
-					throw std::out_of_range(format("Unexpected event %d", event.type));
+					throw parse_unexpect_error(format("Unexpected event %d", event.type));
 				}
 			}
 		}
@@ -86,7 +84,7 @@ namespace yaml {
 					case YAML_MAPPING_END_EVENT:
 						return mapping;
 					default:
-						throw std::out_of_range(format("Unexpected event %d", event.type));
+						throw parse_unexpect_error(format("Unexpected event %d", event.type));
 					}
 				}
 
@@ -104,7 +102,7 @@ namespace yaml {
 						mapping.map_.emplace(std::move(key), readMapping());
 						break;
 					default:
-						throw std::out_of_range(format("Unexpected event %d", event.type));
+						throw parse_unexpect_error(format("Unexpected event %d", event.type));
 					}
 				}
 			}
@@ -138,16 +136,16 @@ namespace yaml {
 				switch (event.type) {
 				case YAML_STREAM_START_EVENT:
 					if (state != State::Init)
-						throw std::out_of_range("Unexpected YAML_STREAM_START_EVENT");
+						throw parse_unexpect_error("Unexpected YAML_STREAM_START_EVENT");
 					state = State::StreamStarted;
 					break;
 				case YAML_DOCUMENT_START_EVENT:
 					if (state != State::StreamStarted)
-						throw std::out_of_range("Unexpected YAML_DOCUMENT_START_EVENT");
+						throw parse_unexpect_error("Unexpected YAML_DOCUMENT_START_EVENT");
 					state = State::DocumentStarted;
 					break;
 				default:
-					throw std::out_of_range(format("Unexpected event %d", event.type));
+					throw parse_unexpect_error(format("Unexpected event %d", event.type));
 				} // switch (event.type)
 			} // for(state != DocumentStarted)
 
@@ -161,7 +159,7 @@ namespace yaml {
 			case YAML_MAPPING_START_EVENT:
 				return Value(readMapping());
 			default:
-				throw std::out_of_range(format("Unexpected event %d", event.type));
+				throw parse_unexpect_error(format("Unexpected event %d", event.type));
 			}
 		}
 	};
@@ -180,7 +178,7 @@ namespace yaml {
 			const auto v = strerror_s(strerr, sizeof(strerr), err);
 #endif
 			(void)v;
-			throw std::out_of_range(format("Cannot open file %s: %d(%s)", filename, err, strerr));
+			throw std::invalid_argument(format("Cannot open file %s: %d(%s)", filename, err, strerr));
 		}
 
 		ParserContext ctx(*f);
