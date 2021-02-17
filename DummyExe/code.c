@@ -30,7 +30,7 @@ void main()
   lstrcat(update_file, _T("\\update~\\updater.exe"));
 
   wsprintf(update_param,
-      _T("-frw %d --gui --after \"%s\""),
+      _T("-frw %d --no-console --gui --after \"%s\""),
       GetCurrentProcessId(), file);
   ShellExecute(NULL, _T("open"), update_file, update_param, NULL, SW_SHOW);
   CoUninitialize();
