@@ -21,6 +21,7 @@ public:
 
 	void runCmd(const std::string&);
 	void doFetch(Reviser&);
+	bool doFetchGui(Reviser&);
 	void showStatus(Reviser&);
 	void showFiles(Reviser&);
 	void doUpdate(Reviser&);

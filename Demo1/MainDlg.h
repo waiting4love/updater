@@ -3,6 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #pragma once
+#include "../UpdateService/Exports.h"
 
 constexpr UINT WM_VERSION_RECEIVED = WM_USER + 1;
 class CMainDlg : public CDialogImpl<CMainDlg>
@@ -33,5 +34,8 @@ public:
 
 	void OnVersionInformationReceived();
 	LRESULT OnVersionReceived(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
+	static void __stdcall VersionInfoReceived(void* param);
+	static void __stdcall CloseApp(void* param);
+	static void __stdcall MsgToText(VersionMessageLabel label, void*, wchar_t* text);
 
 };

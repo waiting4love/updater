@@ -5,6 +5,7 @@
 #include <atlgdi.h>
 #include <memory>
 #include <functional>
+#include <chrono>
 #include "Exports.h"
 
 class UpdateStaticText
@@ -34,18 +35,25 @@ public:
 	void OnFinalMessage(_In_ HWND /*hWnd*/) override;
 	VersionMessage GetLatestMessage() const;
 	void SetColor(COLORREF color);
+	// 如果req for exit存在且被调用，在10秒内退出就启用更新。
 	void EnableShowBoxOnClick(bool enable, std::function<void(void)> request_exit);
 	void EnableAutoSize(bool enable);
 	void SetAlignment(Align H, Align V);
 	void UpdateOffsetFromEdge();
 	void EnableManageUpdateInstance(bool enable);
+	// 是否在退出时更新，如果通过对话框更新的，则在退出时检查时间
+	void EnablePerformUpdateOnExit(bool enable);
 	void SetFont(int nPointSize, LPCTSTR lpszFaceName);
+	void Resize(SIZE size);
 private:
 	WTL::CFont m_ftWingdings;
 	WTL::CFont m_ftText;
 	std::unique_ptr<std::remove_pointer_t<VersionMessage>, decltype(&VersionMessage_Destory)> m_latestMsg{ nullptr, &VersionMessage_Destory };
 	bool m_bAutoSize{ false };
 	bool m_bClickToShow{ false };
+	bool m_bPerformUpdateOnExit{ false };
+	using clock_type = std::chrono::steady_clock;
+	clock_type::time_point m_clkClickUpdateButton;
 	std::function<void(void)> m_funcRequestExit{ nullptr };
 	bool m_bManageUpdateInstance{ false };
 	Align m_alignHori{ Align::Near };

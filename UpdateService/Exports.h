@@ -28,7 +28,6 @@ int __stdcall VersionMessage_GetErrorMessage(VersionMessage, wchar_t* message, i
 int __stdcall VersionMessage_ShowBox(VersionMessage, HWND, const wchar_t* prompt, const wchar_t* buttons[], int buttons_size);
 
 VersionMessageLabel __stdcall VersionMessageLabel_Create(HWND parent, LPRECT rect, UINT id = 0, bool manage_update_instance = false);
-
 void __stdcall VersionMessageLabel_Destory(VersionMessageLabel); // it is not necessary
 HWND __stdcall VersionMessageLabel_GetHandle(VersionMessageLabel);
 VersionMessage __stdcall VersionMessageLabel_GetVersionMessageRef(VersionMessageLabel);
@@ -37,6 +36,7 @@ using ShowingLabelEvent = void (__stdcall*)(VersionMessageLabel, void* param, wc
 using UnargEvent = void(__stdcall*)(void* param);
 void __stdcall VersionMessageLabel_SetShowingLabelEvent(VersionMessageLabel, ShowingLabelEvent, void* param);
 void __stdcall VersionMessageLabel_EnableShowBoxOnClick(VersionMessageLabel label, bool enable, UnargEvent request_exit, void* param);
+void __stdcall VersionMessageLabel_EnablePerformUpdateOnExit(VersionMessageLabel label, bool enable);
 void __stdcall VersionMessageLabel_EnableAutoSize(VersionMessageLabel label, bool enable);
 void __stdcall VersionMessageLabel_SetAlignment(VersionMessageLabel label, bool RightAlign, bool BottomAlign);
 void __stdcall VersionMessageLabel_SetColor(VersionMessageLabel label, COLORREF color);

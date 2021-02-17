@@ -6,6 +6,8 @@
 #include <ryml/ryml.hpp>
 #include <ryml/ryml_std.hpp>
 #include <psapi.h>
+#include <CommCtrl.h>
+#include <future>
 
 namespace progopt = boost::program_options;
 
@@ -56,12 +58,18 @@ int Application::run()
 		("after,a", progopt::value<std::string>(), "run a command after update")
 		("wait,w", progopt::value<int>(), "process id, wait it exit (5s).")
 		("gui", "Show GUI dialog")
+		("no-console", "Do not show console window")
 		("restart", "restart software after updated, work with --wait argument");
 
 	progopt::variables_map vm;
 	progopt::store(progopt::command_line_parser{ args }.options(desc).run(), vm);
 
 	show_dialog = vm.find("gui") != vm.end();
+
+	if (vm.find("no-console") != vm.end())
+	{
+		FreeConsole();
+	}
 
 	std::string restart_request;
 	if (auto itr = vm.find("wait"); itr != vm.end())
@@ -140,7 +148,10 @@ int Application::run()
 	reviser.addIgnore("update~/");
 
 	if (vm.find("fetch") != vm.end()) {
-		doFetch(reviser);
+		if (show_dialog)
+			if (!doFetchGui(reviser)) return -1;
+		else
+			doFetch(reviser);
 	}
 	
 	if (vm.find("get-log") != vm.end()) {
@@ -189,6 +200,128 @@ void Application::doFetch(Reviser& reviser)
 	};
 	reviser.fetch(std::move(cb));
 	std::cout << std::endl;
+}
+
+struct TaskDialogData
+{
+	std::atomic_int pos = 0;
+	std::string str;
+};
+
+HRESULT CALLBACK TaskDialogCallback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, LONG_PTR lpRefData)
+{
+	TaskDialogData* data = (TaskDialogData*)lpRefData;
+	int val = data->pos;
+	switch (uMsg)
+	{
+	case TDN_DIALOG_CONSTRUCTED:
+		break;
+	case TDN_CREATED:
+		::SendMessage(hWnd, TDM_SET_PROGRESS_BAR_RANGE, 0, MAKELPARAM(0, 100));
+		::SendMessage(hWnd, TDM_ENABLE_BUTTON, IDCLOSE, FALSE);
+		break;
+	case TDN_BUTTON_CLICKED:
+		break;
+	case TDN_RADIO_BUTTON_CLICKED:
+		break;
+	case TDN_HYPERLINK_CLICKED:
+		break;
+	case TDN_EXPANDO_BUTTON_CLICKED:
+		break;
+	case TDN_VERIFICATION_CLICKED:
+		break;
+	case TDN_HELP:
+		break;
+	case TDN_TIMER:
+		if (val < 0)
+		{
+			std::string s = data->str;
+			std::wstring ws;
+			if (s.empty())
+			{
+				ws = L"An error occurs!";
+			}
+			else
+			{
+				ws.resize(::MultiByteToWideChar(CP_ACP, 0, s.c_str(), s.length(), NULL, 0));
+				::MultiByteToWideChar(CP_ACP, 0, s.c_str(), s.length(), ws.data(), ws.size());
+			}
+			::SendMessage(hWnd, TDM_ENABLE_BUTTON, IDCLOSE, TRUE);
+			::SendMessage(hWnd, TDM_SET_PROGRESS_BAR_STATE, PBST_ERROR, 0L);
+			::SendMessage(hWnd, TDM_SET_ELEMENT_TEXT, TDE_CONTENT, (LPARAM)ws.c_str());
+			::SendMessage(hWnd, TDM_UPDATE_ICON, TDIE_ICON_MAIN, (LPARAM)TD_ERROR_ICON);
+		}
+		else if (val > 100)
+		{
+			::EndDialog(hWnd, IDOK);
+		}
+		else
+		{
+			WCHAR buf[64];
+			wsprintfW(buf, L"Please waiting...%d%%", val);
+			::SendMessage(hWnd, TDM_SET_ELEMENT_TEXT, TDE_CONTENT, (LPARAM)buf);
+			::SendMessage(hWnd, TDM_SET_PROGRESS_BAR_POS, val, 0L);
+		}
+		break;
+	case TDN_NAVIGATED:
+		break;
+	case TDN_DESTROYED:
+		break;
+	default:
+		break;
+	}
+
+	return S_OK;
+}
+
+bool Application::doFetchGui(Reviser& reviser)
+{
+	using PFN_TaskDialogIndirect = HRESULT(STDAPICALLTYPE*)(const TASKDIALOGCONFIG* pTaskConfig, int* pnButton, int* pnRadioButton, BOOL* pfVerificationFlagChecked);
+	PFN_TaskDialogIndirect pfnTaskDialogIndirect = nullptr;
+
+	auto hCommCtrlDLL = std::unique_ptr<std::remove_pointer_t<HMODULE>, decltype(&FreeLibrary)>(::LoadLibrary(L"comctl32.dll"), &FreeLibrary);
+	if (hCommCtrlDLL)
+	{
+		pfnTaskDialogIndirect = (PFN_TaskDialogIndirect)::GetProcAddress(hCommCtrlDLL.get(), "TaskDialogIndirect");
+	}
+
+	if (pfnTaskDialogIndirect == nullptr)
+	{
+		doFetch(reviser);
+		return 0;
+	}
+
+	TaskDialogData dialogData;
+	std::atomic_bool exit = false;
+	auto cb = [&dialogData, &exit](const TransferProgress& prog) {
+		dialogData.pos = std::min<unsigned>(99, ::MulDiv(99, prog.received_objects, std::max<unsigned>(1, prog.total_objects)));
+		return !exit;
+	};
+
+	auto fut = std::async(std::launch::async, [&reviser, &cb, &dialogData]() {
+		try {
+			reviser.fetch(std::move(cb));
+			dialogData.pos = 999;
+		}
+		catch (const std::exception& ex) {
+			dialogData.str = ex.what();
+			dialogData.pos = -1;
+		}
+	});
+
+	TASKDIALOGCONFIG tdc = { 0 };
+	tdc.cbSize = sizeof(TASKDIALOGCONFIG);
+	tdc.pszWindowTitle = L"Update";
+	tdc.pszMainInstruction = L"Downloading data from remote server";
+	tdc.dwFlags = TDF_SHOW_PROGRESS_BAR | TDF_CALLBACK_TIMER;
+	tdc.dwCommonButtons = TDCBF_CLOSE_BUTTON;
+	tdc.lpCallbackData = (LONG_PTR)&dialogData;
+	tdc.pfCallback = TaskDialogCallback;
+	pfnTaskDialogIndirect(&tdc, nullptr, nullptr, nullptr);
+
+	exit = true;
+	fut.wait();
+	return dialogData.pos >= 100;
 }
 
 void putLines(ryml::NodeRef& node, const std::string& lines)

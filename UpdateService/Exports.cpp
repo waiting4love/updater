@@ -336,11 +336,18 @@ VersionMessage __stdcall VersionMessageLabel_GetVersionMessageRef(VersionMessage
 void __stdcall VersionMessageLabel_SetShowingLabelEvent(VersionMessageLabel label, ShowingLabelEvent func, void* param)
 {
 	auto sta = (UpdateStaticText*)label;
-	sta->ShowingHandler = [label, func, param]() -> std::wstring {
-		wchar_t text[MAX_LABLE_LEN] = { 0 };
-		func(label, param, text);
-		return text;
-	};
+	if (func)
+	{
+		sta->ShowingHandler = [label, func, param]() -> std::wstring {
+			wchar_t text[MAX_LABLE_LEN] = { 0 };
+			func(label, param, text);
+			return text;
+		};
+	}
+	else
+	{
+		sta->ShowingHandler = decltype(sta->ShowingHandler){};
+	}
 }
 
 std::wstring to_content(const StringList& sl, bool skipEmpty = false)
@@ -424,19 +431,17 @@ int __stdcall VersionMessage_ShowBox(VersionMessage msg, HWND parent, const wcha
 
 	taskDlg.SetMainInstructionText(instructionText.c_str());
 	taskDlg.SetContentText(contentText.c_str());
+	taskDlg.SetCommonButtons(TDCBF_CLOSE_BUTTON);
 	
-	std::vector< TASKDIALOG_BUTTON> commandButtons;
-
-	if (vi->isNewVersionReady() && buttons != nullptr)
+	std::vector<TASKDIALOG_BUTTON> commandButtons;
+	if (vi->isNewVersionReady() && buttons != nullptr && buttons_size > 0)
 	{
-		for(int i=0; i<buttons_size; i++)
+		for(int i=0; i<std::min<>(buttons_size, 5); i++)
 		{
-			TASKDIALOG_BUTTON btn;
-			btn.pszButtonText = buttons[i];
-			btn.nButtonID = i+1;
-			commandButtons.push_back(btn);
+			commandButtons.push_back({i+1, buttons[i] });
 		}
 		taskDlg.SetButtons(commandButtons.data(), commandButtons.size());
+		taskDlg.ModifyFlags(0, TDF_USE_COMMAND_LINKS);
 	}
 
 	if(prompt != nullptr) taskDlg.SetFooterText(prompt);
@@ -449,13 +454,25 @@ int __stdcall VersionMessage_ShowBox(VersionMessage msg, HWND parent, const wcha
 void __stdcall VersionMessageLabel_EnableShowBoxOnClick(VersionMessageLabel label, bool enable, UnargEvent request_exit, void* param)
 {
 	auto sta = (UpdateStaticText*)label;
-	sta->EnableShowBoxOnClick(enable, [request_exit, param]() {request_exit(param); });
+	if (request_exit)
+	{
+		sta->EnableShowBoxOnClick(enable, [request_exit, param]() {request_exit(param); });
+	}
+	else
+	{
+		sta->EnableShowBoxOnClick(enable, UpdateService::VersionReceivedHandler{});
+	}
 }
 
 void __stdcall VersionMessageLabel_EnableAutoSize(VersionMessageLabel label,bool enable)
 {
 	auto sta = (UpdateStaticText*)label;
 	sta->EnableAutoSize(enable);
+}
+void __stdcall VersionMessageLabel_EnablePerformUpdateOnExit(VersionMessageLabel label, bool enable)
+{
+	auto sta = (UpdateStaticText*)label;
+	sta->EnablePerformUpdateOnExit(enable);
 }
 
 void __stdcall VersionMessageLabel_SetAlignment(VersionMessageLabel label, bool RightAlign, bool BottomAlign)

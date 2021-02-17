@@ -3,6 +3,7 @@
 #include "UpdateService.h"
 #include "Exports.h"
 #include "StringAlgo.h"
+#include <algorithm>
 
 wchar_t GetIconChar(VersionMessage msg)
 {
@@ -25,6 +26,38 @@ wchar_t GetIconChar(VersionMessage msg)
 		c = chNothing;
 	}
 	return c;
+}
+
+void UpdateStaticText::Resize(SIZE size)
+{
+	RECT rcWindow;
+	GetWindowRect(&rcWindow);
+	if (rcWindow.right - rcWindow.left != size.cx || rcWindow.bottom - rcWindow.top != size.cy)
+	{
+		// 还要看一下对齐方式
+		if (m_alignHori == Align::Near)
+		{
+			rcWindow.right = rcWindow.left + size.cx;
+		}
+		else
+		{
+			rcWindow.left = rcWindow.right - size.cx;
+		}
+
+		if (m_alignVert == Align::Near)
+		{
+			rcWindow.bottom = rcWindow.top + size.cy;
+		}
+		else
+		{
+			rcWindow.top = rcWindow.bottom - size.cy;
+		}
+
+		auto par = GetParent();
+		par.ScreenToClient(&rcWindow);
+		MoveWindow(&rcWindow);
+		par.InvalidateRect(&rcWindow);
+	}
 }
 
 LRESULT UpdateStaticText::OnPaint(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
@@ -71,30 +104,9 @@ LRESULT UpdateStaticText::OnPaint(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL&
 	RECT rcWindow;
 	GetWindowRect(&rcWindow);
 	// 如果大小不对，则改大小先
-	if (m_bAutoSize && ( rcWindow.right - rcWindow.left != size.cx || rcWindow.bottom - rcWindow.top != size.cy))
+	if (m_bAutoSize && (rcWindow.right - rcWindow.left != size.cx || rcWindow.bottom - rcWindow.top != size.cy))
 	{
-		// 还要看一下对齐方式
-		if (m_alignHori == Align::Near)
-		{
-			rcWindow.right = rcWindow.left + size.cx;
-		}
-		else
-		{
-			rcWindow.left = rcWindow.right - size.cx;
-		}
-
-		if (m_alignVert == Align::Near)
-		{
-			rcWindow.bottom = rcWindow.top + size.cy;
-		}
-		else
-		{
-			rcWindow.top = rcWindow.bottom - size.cy;
-		}
-
-		auto par = GetParent();
-		par.ScreenToClient(&rcWindow);
-		MoveWindow(&rcWindow);
+		Resize(size);
 	}
 	else
 	{
@@ -146,7 +158,15 @@ LRESULT UpdateStaticText::OnVersionInfoReceived(UINT uMsg, WPARAM wParam, LPARAM
 			ws = to_wstring(s);
 		}
 	}
+	
+
 	SetWindowText(ws.c_str());
+	RECT rc;
+	GetClientRect(&rc);
+	if (::IsRectEmpty(&rc))
+	{
+		Resize({ 1,1 });
+	}
 	Invalidate();
 
 	return 0;
@@ -194,6 +214,25 @@ void UpdateStaticText::OnFinalMessage(HWND)
 	if (m_bManageUpdateInstance)
 	{
 		Update_StopWatch();
+	}
+
+	// 如果有新版本
+	if (Update_IsNewVersionReady())
+	{
+		if (clock_type::now() - m_clkClickUpdateButton < std::chrono::seconds{ 10 })
+		{
+			// 最后一次点Update按钮10秒内，更新并重启
+			Update_Perform(true);
+		}
+		else if (m_bPerformUpdateOnExit)
+		{
+			// 如果有更新标志，更新并退出
+			Update_Perform(false);
+		}
+	}
+
+	if(m_bManageUpdateInstance)
+	{
 		Update_Uninitialize();
 	}
 	delete this;
@@ -252,6 +291,11 @@ void UpdateStaticText::EnableManageUpdateInstance(bool enable)
 	m_bManageUpdateInstance = enable;
 }
 
+void UpdateStaticText::EnablePerformUpdateOnExit(bool enable)
+{
+	m_bPerformUpdateOnExit = enable;
+}
+
 void UpdateStaticText::SetFont(int nPointSize, LPCTSTR lpszFaceName)
 {
 	m_ftText.CreatePointFont(nPointSize, lpszFaceName);
@@ -268,12 +312,15 @@ LRESULT UpdateStaticText::OnClick(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL&
 	
 	if (auto msg = GetLatestMessage(); VersionMessage_IsNewVersionReady(msg) && m_funcRequestExit)
 	{
-		if (LPCTSTR buttons[] = { L"Update", L"Later" }; 1 == VersionMessage_ShowBox(msg, GetParent(), NULL, buttons, 2))
+		//if (LPCTSTR buttons[] = { L"Update", L"Later" }; 1 == VersionMessage_ShowBox(msg, GetParent(), NULL, buttons, 2))
+		if (LPCTSTR buttons[] = { L"Update" }; 1 == VersionMessage_ShowBox(msg, GetParent(), NULL, buttons, 1))
 		{
-			if (Update_Perform(true))
-				m_funcRequestExit();
-			else
-				MessageBox(_T("Update Failed!"));
+			m_clkClickUpdateButton = clock_type::now();
+			m_funcRequestExit();
+		}
+		else
+		{
+			m_clkClickUpdateButton = clock_type::time_point{};
 		}
 	}
 	else

@@ -31,3 +31,4 @@ EXPORTS
 	VersionMessageLabel_SetAlignment
 	VersionMessageLabel_SetColor
 	VersionMessageLabel_SetFont
+	VersionMessageLabel_EnablePerformUpdateOnExit

@@ -6,6 +6,9 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "updater", "updater\updater.vcxproj", "{5B1EA129-2B13-4CEA-9641-02E3C5CA445C}"
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Demo1", "Demo1\Demo1.vcxproj", "{38C7B5BA-81AB-4706-A3C9-F6A702D73B70}"
+	ProjectSection(ProjectDependencies) = postProject
+		{A5E65293-5F4B-426A-A845-6A5C808E171C} = {A5E65293-5F4B-426A-A845-6A5C808E171C}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "UpdateService", "UpdateService\UpdateService.vcxproj", "{A5E65293-5F4B-426A-A845-6A5C808E171C}"
 EndProject

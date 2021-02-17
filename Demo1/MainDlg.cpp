@@ -8,22 +8,21 @@
 #include "MainDlg.h"
 #include <string>
 #include <array>
-#include "../UpdateService/Exports.h"
 #pragma comment(lib, "UpdateService.lib")
 
-void __stdcall VersionInfoReceived(void* param)
+void __stdcall CMainDlg::VersionInfoReceived(void* param)
 {
 	auto dlg = (CMainDlg*)param;
 	dlg->OnVersionInformationReceived();
 }
 
-void __stdcall CloseApp(void* param)
+void __stdcall CMainDlg::CloseApp(void* param)
 {
 	auto dlg = (CMainDlg*)param;
 	dlg->EndDialog(0);
 }
 
-void __stdcall MsgToText(VersionMessageLabel label, void*, wchar_t* text)
+void __stdcall CMainDlg::MsgToText(VersionMessageLabel label, void*, wchar_t* text)
 {
 	auto msg = VersionMessageLabel_GetVersionMessageRef(label);
 	if (VersionMessage_IsError(msg))
@@ -66,15 +65,14 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 	rc.right -= 10;
 	rc.top += 10;
 
-	//Update_Initialize();
 	auto lbl = VersionMessageLabel_Create(m_hWnd, &rc, 1001, true);
 	VersionMessageLabel_EnableAutoSize(lbl, true);
 	VersionMessageLabel_SetColor(lbl, ::GetSysColor(COLOR_HOTLIGHT));
-	VersionMessageLabel_SetAlignment(lbl, true, false);
+	VersionMessageLabel_SetAlignment(lbl, true, true);
 	VersionMessageLabel_SetFont(lbl, 260, L"Arial");
 	VersionMessageLabel_SetShowingLabelEvent(lbl, MsgToText, this);
 	VersionMessageLabel_EnableShowBoxOnClick(lbl, true, CloseApp, this);
-	//Update_StartWatch(60'000, VersionInfoReceived, this);
+	VersionMessageLabel_EnablePerformUpdateOnExit(lbl, true);
 	return TRUE;
 }
 
