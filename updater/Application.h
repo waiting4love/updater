@@ -26,5 +26,6 @@ public:
 	void showFiles(Reviser&);
 	void doUpdate(Reviser&);
 	void doReset(Reviser&);
+	bool waitProcess(int proc_id, std::string* file_name);
 };
 
