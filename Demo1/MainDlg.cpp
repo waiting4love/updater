@@ -69,9 +69,10 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 	VersionMessageLabel_EnableAutoSize(lbl, true);
 	VersionMessageLabel_SetColor(lbl, ::GetSysColor(COLOR_HOTLIGHT));
 	VersionMessageLabel_SetAlignment(lbl, true, true);
-	VersionMessageLabel_SetFont(lbl, 260, L"Arial");
+	VersionMessageLabel_SetFont(lbl, 140, L"Arial");
 	VersionMessageLabel_SetShowingLabelEvent(lbl, MsgToText, this);
-	VersionMessageLabel_EnableShowBoxOnClick(lbl, true, CloseApp, this);
+	//VersionMessageLabel_EnableShowBoxOnClick(lbl, true, CloseApp, this);
+	VersionMessageLabel_EnableShowBoxOnClick(lbl, true, EXIT_WITH_MESSAGE, nullptr);
 	VersionMessageLabel_EnablePerformUpdateOnExit(lbl, true);
 	return TRUE;
 }

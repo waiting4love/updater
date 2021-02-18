@@ -283,7 +283,7 @@ void UpdateStaticText::SetAlignment(Align H, Align V)
 		{
 			Parent.SubclassWindow(GetParent());
 		}
-	}
+	}	
 }
 
 void UpdateStaticText::EnableManageUpdateInstance(bool enable)

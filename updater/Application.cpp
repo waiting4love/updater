@@ -1,20 +1,19 @@
 #include "stdafx.h"
 #include "Application.h"
 #include "Reviser.h"
+#include "WaitDialog.h"
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 #include <ryml/ryml.hpp>
 #include <ryml/ryml_std.hpp>
 #include <psapi.h>
-#include <CommCtrl.h>
-#include <future>
 
 namespace progopt = boost::program_options;
 
 auto make_handle_ptr(HANDLE h)
 {
 	return std::unique_ptr<
-		std::remove_pointer<HANDLE>::type,
+		std::remove_pointer_t<HANDLE>,
 		decltype(&::CloseHandle)>(h, &::CloseHandle);
 }
 
@@ -36,7 +35,7 @@ void Application::err(int exitCode, const std::string& s) const
 	err(s);
 	if (show_dialog)
 	{
-		MessageBoxA(NULL, s.c_str(), "Error", MB_ICONERROR);
+		MessageBoxA(nullptr, s.c_str(), "Error", MB_ICONERROR);
 	}
 	std::exit(exitCode);
 }
@@ -92,7 +91,7 @@ int Application::run()
 		runCmd(cmd);
 	}
 
-	if (vm.size() == 0 || vm.find("help") != vm.end()) {
+	if (vm.empty() || vm.find("help") != vm.end()) {
 		auto x = boost::lexical_cast<std::string>(desc);
 		this->out(x);
 		return 0;
@@ -100,8 +99,7 @@ int Application::run()
 
 	if (auto itr = vm.find("config"); itr != vm.end())
 	{
-		auto cfgfile = itr->second.as<std::string>();
-		loadSettings(cfgfile);
+		loadSettings(itr->second.as<std::string>());
 	}
 	else
 	{
@@ -133,9 +131,13 @@ int Application::run()
 
 	if (vm.find("fetch") != vm.end()) {
 		if (show_dialog)
+		{
 			if (!doFetchGui(reviser)) return -1;
+		}
 		else
+		{
 			doFetch(reviser);
+		}
 	}
 	
 	if (vm.find("get-log") != vm.end()) {
@@ -231,141 +233,52 @@ void Application::doFetch(Reviser& reviser)
 	std::cout << std::endl;
 }
 
-struct TaskDialogData
+std::wstring to_wstring(const std::string& s, UINT code_page = CP_ACP)
 {
-	std::atomic_int pos = 0;
-	std::string str;
-	int prev_pos = -1;
-};
-
-HRESULT CALLBACK TaskDialogCallback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM lParam, LONG_PTR lpRefData)
-{
-	TaskDialogData* data = (TaskDialogData*)lpRefData;
-	int val = data->pos;
-	int prev_pos = data->prev_pos;
-	switch (uMsg)
-	{
-	case TDN_DIALOG_CONSTRUCTED:
-		break;
-	case TDN_CREATED:
-		::SendMessage(hWnd, TDM_SET_PROGRESS_BAR_RANGE, 0, MAKELPARAM(0, 100));
-		::SendMessage(hWnd, TDM_ENABLE_BUTTON, IDCLOSE, FALSE);
-		break;
-	case TDN_BUTTON_CLICKED:
-		break;
-	case TDN_RADIO_BUTTON_CLICKED:
-		break;
-	case TDN_HYPERLINK_CLICKED:
-		break;
-	case TDN_EXPANDO_BUTTON_CLICKED:
-		break;
-	case TDN_VERIFICATION_CLICKED:
-		break;
-	case TDN_HELP:
-		break;
-	case TDN_TIMER:
-		if (prev_pos != val)
-		{
-			if (val < 0)
-			{
-				std::string s = data->str;
-				std::wstring ws;
-				if (s.empty())
-				{
-					ws = L"An error occurs!";
-				}
-				else
-				{
-					ws.resize(::MultiByteToWideChar(CP_ACP, 0, s.c_str(), s.length(), NULL, 0));
-					::MultiByteToWideChar(CP_ACP, 0, s.c_str(), s.length(), ws.data(), ws.size());
-				}
-				::SendMessage(hWnd, TDM_ENABLE_BUTTON, IDCLOSE, TRUE);
-				::SendMessage(hWnd, TDM_SET_PROGRESS_BAR_STATE, PBST_ERROR, 0L);
-				::SendMessage(hWnd, TDM_SET_ELEMENT_TEXT, TDE_CONTENT, (LPARAM)ws.c_str());
-				::SendMessage(hWnd, TDM_UPDATE_ICON, TDIE_ICON_MAIN, (LPARAM)TD_ERROR_ICON);
-			}
-			else if (val > 100)
-			{
-				::EndDialog(hWnd, IDOK);
-			}
-			else if (val == 0)
-			{
-				::SendMessage(hWnd, TDM_SET_PROGRESS_BAR_MARQUEE, 1, 50);
-			}
-			else if (val > 0)
-			{
-				if (prev_pos <= 0)
-				{
-					::SendMessage(hWnd, TDM_SET_ELEMENT_TEXT, TDE_MAIN_INSTRUCTION, (LPARAM)L"Downloading data from remote server...");
-					::SendMessage(hWnd, TDM_SET_MARQUEE_PROGRESS_BAR, 0, 0);
-				}
-				WCHAR buf[64];
-				wsprintfW(buf, L"Downloading...%d%%", val);
-				::SendMessage(hWnd, TDM_SET_ELEMENT_TEXT, TDE_CONTENT, (LPARAM)buf);
-				::SendMessage(hWnd, TDM_SET_PROGRESS_BAR_POS, val, 0L);
-			}
-		}
-		data->prev_pos = val;
-		break;
-	case TDN_NAVIGATED:
-		break;
-	case TDN_DESTROYED:
-		break;
-	default:
-		break;
-	}
-
-	return S_OK;
+	std::wstring ws;
+	ws.resize(::MultiByteToWideChar(code_page, 0, s.c_str(), s.length(), nullptr, 0));
+	::MultiByteToWideChar(code_page, 0, s.c_str(), s.length(), ws.data(), ws.size());
+	return ws;
 }
 
 bool Application::doFetchGui(Reviser& reviser)
 {
-	using PFN_TaskDialogIndirect = HRESULT(STDAPICALLTYPE*)(const TASKDIALOGCONFIG* pTaskConfig, int* pnButton, int* pnRadioButton, BOOL* pfVerificationFlagChecked);
-	PFN_TaskDialogIndirect pfnTaskDialogIndirect = nullptr;
+	WaitDialog::WaitArgsWithMutex args_w_m;
 
-	std::unique_ptr<std::remove_pointer_t<HMODULE>, decltype(&FreeLibrary)> hCommCtrlDLL{ ::LoadLibrary(L"comctl32.dll"), &FreeLibrary };
-	if (hCommCtrlDLL)
-	{
-		pfnTaskDialogIndirect = (PFN_TaskDialogIndirect)::GetProcAddress(hCommCtrlDLL.get(), "TaskDialogIndirect");
-	}
-
-	if (pfnTaskDialogIndirect == nullptr)
-	{
-		doFetch(reviser);
-		return true;
-	}
-
-	TaskDialogData dialogData;
-	std::atomic_bool exit = false;
-	auto cb = [&dialogData, &exit](const TransferProgress& prog) {
-		dialogData.pos = std::min<unsigned>(99, ::MulDiv(99, prog.received_objects, std::max<unsigned>(1, prog.total_objects)));
-		return !exit;
+	auto cb = [&args_w_m](const TransferProgress& prog) {
+		int pos = std::min<unsigned>(99, ::MulDiv(99, prog.received_objects, std::max<unsigned>(1, prog.total_objects)));
+		std::wstring buf(64, L'\0');
+		wsprintfW(buf.data(), L"Downloading...%d%%", pos);
+		std::scoped_lock sl{ args_w_m.mutex };
+		args_w_m.args.pos = pos;
+		args_w_m.args.contantText = std::move(buf);
+		return !args_w_m.args.cancelled;
 	};
 
-	auto fut = std::async(std::launch::async, [&reviser, &cb, &dialogData]() {
+	auto proc = [&reviser, &cb](WaitDialog::WaitArgsWithMutex& args) {
+		std::wstring errStr;
 		try {
 			reviser.fetch(std::move(cb));
-			dialogData.pos = 999;
+			args.args.pos = 999; //completed
+		} catch (const std::exception& ex) {
+			errStr = to_wstring(ex.what());
+		} catch (...) {
+			errStr = L"An unexpected error has occurred";
 		}
-		catch (const std::exception& ex) {
-			dialogData.str = ex.what();
-			dialogData.pos = -1;
+		if (!errStr.empty()) {
+			std::scoped_lock sl{ args.mutex };
+			args.args.contantText = std::move(errStr);
+			args.args.status = WaitDialog::Status::Error;
+			args.args.enable_cancel_button = true;
+			return false;
 		}
-	});
+		return true;
+	};
 
-	TASKDIALOGCONFIG tdc = { 0 };
-	tdc.cbSize = sizeof(TASKDIALOGCONFIG);
-	tdc.pszWindowTitle = L"Update";
-	tdc.pszMainInstruction = L"Connecting to remote server...";
-	tdc.dwFlags = TDF_SHOW_MARQUEE_PROGRESS_BAR | TDF_CALLBACK_TIMER;
-	tdc.dwCommonButtons = TDCBF_CLOSE_BUTTON;
-	tdc.lpCallbackData = (LONG_PTR)&dialogData;
-	tdc.pfCallback = TaskDialogCallback;
-	pfnTaskDialogIndirect(&tdc, nullptr, nullptr, nullptr);
-
-	exit = true;
-	fut.wait();
-	return dialogData.pos >= 100;
+	args_w_m.args.title = L"Update";
+	args_w_m.args.instructionText = L"Connecting to remote server...";
+	args_w_m.args.enable_cancel_button = false;
+	return WaitDialog::WaitProgress<bool>(std::move(proc), args_w_m);
 }
 
 void putLines(ryml::NodeRef& node, const std::string& lines)

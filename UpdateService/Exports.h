@@ -33,8 +33,12 @@ HWND __stdcall VersionMessageLabel_GetHandle(VersionMessageLabel);
 VersionMessage __stdcall VersionMessageLabel_GetVersionMessageRef(VersionMessageLabel);
 const size_t MAX_LABLE_LEN = 256;
 using ShowingLabelEvent = void (__stdcall*)(VersionMessageLabel, void* param, wchar_t* text); // max len = 256
-using UnargEvent = void(__stdcall*)(void* param);
 void __stdcall VersionMessageLabel_SetShowingLabelEvent(VersionMessageLabel, ShowingLabelEvent, void* param);
+// request_exit是用户点击update后的动作，让软件在10秒内退出。可自定义函数或特殊数字
+using UnargEvent = void(__stdcall*)(void* param);
+const UnargEvent EXIT_WITH_MESSAGE = (UnargEvent)-1; // param = 0 will send WM_CLOSE, otherwise param is message id
+const UnargEvent EXIT_WITH_DESTROYWINDOW = (UnargEvent)-2;
+const UnargEvent EXIT_WITH_ENDDIALOG = (UnargEvent)-3;
 void __stdcall VersionMessageLabel_EnableShowBoxOnClick(VersionMessageLabel label, bool enable, UnargEvent request_exit, void* param);
 void __stdcall VersionMessageLabel_EnablePerformUpdateOnExit(VersionMessageLabel label, bool enable);
 void __stdcall VersionMessageLabel_EnableAutoSize(VersionMessageLabel label, bool enable);

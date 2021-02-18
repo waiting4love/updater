@@ -145,7 +145,7 @@ public:
             DWORD pid = ::GetCurrentProcessId();
             TCHAR Args[MAX_PATH];
 
-            wsprintf(Args, _T("--gui -rw %d"), pid);
+            wsprintf(Args, _T("--no-console --gui -rw %d"), pid);
             if (FlagForRestart)
             {
                 _tcscat_s(Args, _T(" --after \""));

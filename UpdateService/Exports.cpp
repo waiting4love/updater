@@ -456,7 +456,14 @@ void __stdcall VersionMessageLabel_EnableShowBoxOnClick(VersionMessageLabel labe
 	auto sta = (UpdateStaticText*)label;
 	if (request_exit)
 	{
-		sta->EnableShowBoxOnClick(enable, [request_exit, param]() {request_exit(param); });
+		if(request_exit == EXIT_WITH_MESSAGE)
+			sta->EnableShowBoxOnClick(enable, [label, msg = (param == nullptr ? WM_CLOSE : (UINT)param)]() { ::SendMessage(::GetAncestor(VersionMessageLabel_GetHandle(label), GA_ROOTOWNER), msg, 0, 0); });
+		else if(request_exit == EXIT_WITH_DESTROYWINDOW)
+			sta->EnableShowBoxOnClick(enable, [label]() { ::DestroyWindow(::GetAncestor(VersionMessageLabel_GetHandle(label), GA_ROOTOWNER));});
+		else if (request_exit == EXIT_WITH_ENDDIALOG)
+			sta->EnableShowBoxOnClick(enable, [label, param]() { ::EndDialog(::GetAncestor(VersionMessageLabel_GetHandle(label), GA_ROOTOWNER), (INT_PTR)param); });
+		else
+			sta->EnableShowBoxOnClick(enable, [request_exit, param]() {request_exit(param); });
 	}
 	else
 	{
