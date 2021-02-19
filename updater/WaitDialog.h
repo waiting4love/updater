@@ -18,19 +18,18 @@ public:
 		bool cancelled{ false }; // user clicked cancel button
 	};
 
-	struct WaitArgsWithMutex
+	struct WaitArgsWithMutex : WaitArgs
 	{
-		mutable std::mutex mutex; // should lock before modify
-		WaitArgs args;
+		mutable std::mutex mutex; // should lock before modify		
 	};
 
-	static bool WaitProgress(WaitArgsWithMutex& args);
+	static bool Show(WaitArgsWithMutex& args);
 
-	template<class T>
-	static T WaitProgress(std::function<T (WaitArgsWithMutex&)> async_proc, WaitArgsWithMutex& args)
+	template<class Func>
+	static auto ShowAsync(Func&& func, WaitArgsWithMutex& args)
 	{
-		auto fut = std::async(std::launch::async, async_proc, std::ref(args));
-		if (!WaitProgress(args)) args.args.cancelled = true;
+		auto fut = std::async(std::launch::async, std::forward<Func>(func), std::ref(args));
+		if (!Show(args)) args.cancelled = true;
 		return fut.get();
 	}
 };

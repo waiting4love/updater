@@ -10,6 +10,14 @@
 
 namespace progopt = boost::program_options;
 
+std::wstring to_wstring(const std::string& s, UINT code_page = CP_ACP)
+{
+	std::wstring ws;
+	ws.resize(::MultiByteToWideChar(code_page, 0, s.c_str(), s.length(), nullptr, 0));
+	::MultiByteToWideChar(code_page, 0, s.c_str(), s.length(), ws.data(), ws.size());
+	return ws;
+}
+
 auto make_handle_ptr(HANDLE h)
 {
 	return std::unique_ptr<
@@ -130,14 +138,7 @@ int Application::run()
 	reviser.addIgnore("update~/");
 
 	if (vm.find("fetch") != vm.end()) {
-		if (show_dialog)
-		{
-			if (!doFetchGui(reviser)) return -1;
-		}
-		else
-		{
-			doFetch(reviser);
-		}
+		if (!doFetch(reviser)) return -1;
 	}
 	
 	if (vm.find("get-log") != vm.end()) {
@@ -147,10 +148,10 @@ int Application::run()
 		showFiles(reviser);
 	}
 	else if (vm.find("do-update") != vm.end()) {
-		doUpdate(reviser);
+		if (!doUpdate(reviser, false)) return -1;
 	}
 	else if (vm.find("do-reset") != vm.end()) {
-		doReset(reviser);
+		if (!doUpdate(reviser, true)) return -1;
 	}
 	
 	if (auto itr = vm.find("after"); itr != vm.end())
@@ -217,7 +218,15 @@ void Application::runCmd(const std::string& cmd)
 	::ShellExecuteA(NULL, "open", cmd.c_str(), NULL, NULL, SW_SHOW);
 }
 
-void Application::doFetch(Reviser& reviser)
+bool Application::doFetch(Reviser& reviser)
+{
+	if (show_dialog)
+		return doFetchGui(reviser);
+	else
+		return doFetchCl(reviser);
+}
+
+bool Application::doFetchCl(Reviser& reviser)
 {
 	auto cb = [this, pos=std::make_shared<int>(0)](const TransferProgress& prog) {
 		int cur = 50 * prog.received_objects / std::max<unsigned>(1, prog.total_objects);
@@ -231,35 +240,29 @@ void Application::doFetch(Reviser& reviser)
 	};
 	reviser.fetch(std::move(cb));
 	std::cout << std::endl;
+	return true;
 }
 
-std::wstring to_wstring(const std::string& s, UINT code_page = CP_ACP)
+auto makeFetchGuiCallback(WaitDialog::WaitArgsWithMutex& args_w_m)
 {
-	std::wstring ws;
-	ws.resize(::MultiByteToWideChar(code_page, 0, s.c_str(), s.length(), nullptr, 0));
-	::MultiByteToWideChar(code_page, 0, s.c_str(), s.length(), ws.data(), ws.size());
-	return ws;
-}
+	return [&args_w_m](const TransferProgress& prog) {
+		int pos = std::min<unsigned>(99, ::MulDiv(99, prog.received_objects, std::max<unsigned>(1, prog.total_objects)));		
+		std::wstring buf(64, L'\0'); wsprintfW(buf.data(), L"Downloading...%d%%", pos);
 
-bool Application::doFetchGui(Reviser& reviser)
-{
-	WaitDialog::WaitArgsWithMutex args_w_m;
-
-	auto cb = [&args_w_m](const TransferProgress& prog) {
-		int pos = std::min<unsigned>(99, ::MulDiv(99, prog.received_objects, std::max<unsigned>(1, prog.total_objects)));
-		std::wstring buf(64, L'\0');
-		wsprintfW(buf.data(), L"Downloading...%d%%", pos);
 		std::scoped_lock sl{ args_w_m.mutex };
-		args_w_m.args.pos = pos;
-		args_w_m.args.contantText = std::move(buf);
-		return !args_w_m.args.cancelled;
+		args_w_m.pos = pos;
+		args_w_m.instructionText = L"Downloading files from remote server...";
+		args_w_m.contantText = std::move(buf);
+		return !args_w_m.cancelled;
 	};
+}
 
-	auto proc = [&reviser, &cb](WaitDialog::WaitArgsWithMutex& args) {
+template<class Func>
+auto makeWaitDialogProc(const Func& func) {
+	return [&func](WaitDialog::WaitArgsWithMutex& args) {
 		std::wstring errStr;
 		try {
-			reviser.fetch(std::move(cb));
-			args.args.pos = 999; //completed
+			func(args);	args.pos = 999; //completed
 		} catch (const std::exception& ex) {
 			errStr = to_wstring(ex.what());
 		} catch (...) {
@@ -267,18 +270,25 @@ bool Application::doFetchGui(Reviser& reviser)
 		}
 		if (!errStr.empty()) {
 			std::scoped_lock sl{ args.mutex };
-			args.args.contantText = std::move(errStr);
-			args.args.status = WaitDialog::Status::Error;
-			args.args.enable_cancel_button = true;
+			args.contantText = std::move(errStr);
+			args.status = WaitDialog::Status::Error;
+			args.enable_cancel_button = true;
 			return false;
 		}
 		return true;
 	};
+}
 
-	args_w_m.args.title = L"Update";
-	args_w_m.args.instructionText = L"Connecting to remote server...";
-	args_w_m.args.enable_cancel_button = false;
-	return WaitDialog::WaitProgress<bool>(std::move(proc), args_w_m);
+bool Application::doFetchGui(Reviser& reviser)
+{
+	WaitDialog::WaitArgsWithMutex args_w_m;
+	args_w_m.title = L"Update";
+	args_w_m.contantText = L"Downloading...";
+	args_w_m.instructionText = L"Connecting to remote server...";
+	args_w_m.enable_cancel_button = false;
+	return WaitDialog::ShowAsync(
+		makeWaitDialogProc([&reviser](auto& args) {reviser.fetch(makeFetchGuiCallback(args)); }),
+		args_w_m);
 }
 
 void putLines(ryml::NodeRef& node, const std::string& lines)
@@ -356,14 +366,24 @@ void Application::showFiles(Reviser& reviser)
 	ryml::emit(tree);
 }
 
-void Application::doUpdate(Reviser& reviser)
+bool Application::doUpdate(Reviser& reviser, bool reset)
 {
-	reviser.sync(false);
-}
-
-void Application::doReset(Reviser& reviser)
-{
-	reviser.sync(true);
+	if (show_dialog)
+	{
+		WaitDialog::WaitArgsWithMutex args_w_m;
+		args_w_m.title = L"Update";
+		args_w_m.instructionText = L"Updating...";
+		args_w_m.contantText = L"Please Wait...";
+		args_w_m.enable_cancel_button = false;
+		return WaitDialog::ShowAsync(
+			makeWaitDialogProc([&reviser, reset](auto&) { reviser.sync(reset); }),
+			args_w_m);
+	}
+	else
+	{
+		reviser.sync(reset);
+	}
+	return true;
 }
 
 bool Application::loadSettings(const std::string& fn)

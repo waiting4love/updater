@@ -2,6 +2,8 @@
 #include "WaitDialog.h"
 #include <CommCtrl.h>
 
+#pragma comment(lib, "Comctl32.lib")
+
 struct WaitArgsPair
 {
 	WaitDialog::WaitArgsWithMutex& Current;
@@ -13,14 +15,14 @@ struct WaitArgsPair
 	{
 	}
 
-	static bool inRange(int pos)
+	[[nodiscard]] static bool inRange(int pos)
 	{
 		return pos > 0 && pos < 100;
 	}
 
-	bool isCompleted() const
+	[[nodiscard]] bool isCompleted() const
 	{
-		return Current.args.pos > 100;
+		return Current.pos > 100;
 	}
 
 	void updateTaskDialog(HWND hWnd)
@@ -30,10 +32,11 @@ struct WaitArgsPair
 			::SendMessage(hWnd, TDM_SET_PROGRESS_BAR_RANGE, 0, MAKELPARAM(0, 100));
 		}
 
-#define IS_DIFF(x) First || (args.x != Prev.x)
-		Current.mutex.lock();
-		auto args = Current.args;
-		Current.mutex.unlock();
+		std::scoped_lock sl{ Current.mutex };
+		auto& args = (const WaitDialog::WaitArgs&)Current;
+
+		bool changed = false;
+#define IS_DIFF(x) bool c = args.x != Prev.x; (changed=changed||c), (First || c)
 
 		if(IS_DIFF(enable_cancel_button)) {
 			::SendMessage(hWnd, TDM_ENABLE_BUTTON, IDCANCEL, args.enable_cancel_button?TRUE:FALSE);
@@ -75,7 +78,7 @@ struct WaitArgsPair
 		}
 
 		First = false;
-		Prev = std::move(args);
+		if(changed) Prev = args;
 	}
 };
 
@@ -90,9 +93,9 @@ HRESULT CALLBACK TaskDialogCallback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 		data->updateTaskDialog(hWnd);
 		break;
 	case TDN_BUTTON_CLICKED:
+		if (wParam == IDCANCEL) data->Current.cancelled = true;
 		break;
 	case TDN_RADIO_BUTTON_CLICKED:
-		if (wParam == IDCANCEL) data->Current.args.cancelled = true;
 		break;
 	case TDN_HYPERLINK_CLICKED:
 		break;
@@ -120,21 +123,9 @@ HRESULT CALLBACK TaskDialogCallback(HWND hWnd, UINT uMsg, WPARAM wParam, LPARAM 
 	return S_OK;
 }
 
-bool WaitDialog::WaitProgress(WaitArgsWithMutex& args)
+bool WaitDialog::Show(WaitArgsWithMutex& args)
 {
 	WaitArgsPair data{ args };
-	
-	using PFN_TaskDialogIndirect = HRESULT(STDAPICALLTYPE*)(const TASKDIALOGCONFIG* pTaskConfig, int* pnButton, int* pnRadioButton, BOOL* pfVerificationFlagChecked);
-	PFN_TaskDialogIndirect pfnTaskDialogIndirect = nullptr;
-
-	std::unique_ptr<std::remove_pointer_t<HMODULE>, decltype(&FreeLibrary)> hCommCtrlDLL{ ::LoadLibrary(L"comctl32.dll"), &FreeLibrary };
-	if (hCommCtrlDLL)
-	{
-		pfnTaskDialogIndirect = (PFN_TaskDialogIndirect)::GetProcAddress(hCommCtrlDLL.get(), "TaskDialogIndirect");
-	}
-
-	if (pfnTaskDialogIndirect == nullptr)
-		return false;
 
 	TASKDIALOGCONFIG tdc = { 0 };
 	tdc.cbSize = sizeof(TASKDIALOGCONFIG);
@@ -142,6 +133,6 @@ bool WaitDialog::WaitProgress(WaitArgsWithMutex& args)
 	tdc.dwCommonButtons = TDCBF_CANCEL_BUTTON;
 	tdc.lpCallbackData = (LONG_PTR)&data;
 	tdc.pfCallback = TaskDialogCallback;
-	auto res = pfnTaskDialogIndirect(&tdc, nullptr, nullptr, nullptr);
+	auto res = TaskDialogIndirect(&tdc, nullptr, nullptr, nullptr);
 	return SUCCEEDED(res);
 }

@@ -20,12 +20,15 @@ public:
 	int run();
 
 	void runCmd(const std::string&);
-	void doFetch(Reviser&);
+	bool doFetch(Reviser&);
 	bool doFetchGui(Reviser&);
+	bool doFetchCl(Reviser&);
+
 	void showStatus(Reviser&);
 	void showFiles(Reviser&);
-	void doUpdate(Reviser&);
-	void doReset(Reviser&);
+
+	bool doUpdate(Reviser&, bool reset);
+
 	bool waitProcess(int proc_id, std::string* file_name);
 };
 
