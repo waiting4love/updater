@@ -6,7 +6,7 @@
 #include <memory>
 #include <functional>
 #include <chrono>
-#include "Exports.h"
+#include "UpdateServiceExports.h"
 
 class UpdateStaticText
 	:public CWindowImpl<UpdateStaticText, WTL::CStatic, CWinTraits<WS_CHILD | WS_VISIBLE | SS_OWNERDRAW | SS_NOTIFY, WS_EX_TRANSPARENT>>
@@ -39,12 +39,16 @@ public:
 	void EnableShowBoxOnClick(bool enable, std::function<void(void)> request_exit);
 	void EnableAutoSize(bool enable);
 	void SetAlignment(Align H, Align V);
+	void SetAnchor(UINT);
 	void UpdateOffsetFromEdge();
 	void EnableManageUpdateInstance(bool enable);
 	// 是否在退出时更新，如果通过对话框更新的，则在退出时检查时间
 	void EnablePerformUpdateOnExit(bool enable);
 	void SetFont(int nPointSize, LPCTSTR lpszFaceName);
-	void Resize(SIZE size);
+	bool UpdateLayout(SIZE size); // 更新大小，如果没有改变返回false
+	SIZE CalcTextSize(HDC hdc, wchar_t c, LPCWSTR text, RECT* rcFlag, RECT* rcText);
+	bool IsAutoSize() const;
+	bool HasAnchor(UINT) const;
 private:
 	WTL::CFont m_ftWingdings;
 	WTL::CFont m_ftText;
@@ -58,6 +62,7 @@ private:
 	bool m_bManageUpdateInstance{ false };
 	Align m_alignHori{ Align::Near };
 	Align m_alignVert{ Align::Near };
+	UINT m_anchor{ ANCHOR_NONE };
 	COLORREF m_clText{ RGB(0, 192, 0) };
 	RECT m_offsetFromEdge{ 0 };
 };

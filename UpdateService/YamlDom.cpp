@@ -194,24 +194,23 @@ namespace yaml {
 		return map_.find(name) != map_.end();
 	}
 
-	const Value& Mapping::getValue(const std::string& name) const {
+	ValueRef Mapping::getValue(const std::string& name) const {
 		const auto it = map_.find(name);
-		if (it == map_.end())
-			throw std::invalid_argument(format("Field %s not found", name.c_str()));
+		if (it == map_.end()) return ValueRef{};
 
-		return std::cref(it->second);
+		return it->second;
 	}
 
-	const Mapping& Mapping::getMapping(const std::string& name) const {
-		return getValue(name).getMapping();
+	MappingRef Mapping::getMapping(const std::string& name) const {
+		return getValue(name).value_or(Value::getEmpty()).getMapping();
 	}
 
-	const Sequence& Mapping::getSequence(const std::string& name) const {
-		return getValue(name).getSequence();
+	SequenceRef Mapping::getSequence(const std::string& name) const {
+		return getValue(name).value_or(Value::getEmpty()).getSequence();
 	}
 
-	const std::string& Mapping::getString(const std::string& name) const {
-		return getValue(name).getString();
+	StringRef Mapping::getString(const std::string& name) const {
+		return getValue(name).value_or(Value::getEmpty()).getString();
 	}
 
 	const std::string& Mapping::getString(const std::string& name, const std::string& default_value) const {
@@ -219,6 +218,6 @@ namespace yaml {
 		if (it == map_.end())
 			return default_value;
 
-		return it->second.getString();
+		return it->second.getString().value_or(default_value);
 	}
 } // namespace yaml

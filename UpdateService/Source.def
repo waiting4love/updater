@@ -5,6 +5,7 @@ EXPORTS
 	Update_IsAvailable
 	Update_StartWatch
 	Update_StopWatch
+	Update_SetCheckInterval
 	Update_Wait
 	Update_Perform
 	Update_IsError
@@ -32,3 +33,4 @@ EXPORTS
 	VersionMessageLabel_SetColor
 	VersionMessageLabel_SetFont
 	VersionMessageLabel_EnablePerformUpdateOnExit
+	VersionMessageLabel_SetAnchor

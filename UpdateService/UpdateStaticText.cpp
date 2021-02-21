@@ -1,7 +1,7 @@
 ﻿#include "pch.h"
 #include "UpdateStaticText.h"
 #include "UpdateService.h"
-#include "Exports.h"
+#include "UpdateServiceExports.h"
 #include "StringAlgo.h"
 #include <algorithm>
 
@@ -28,103 +28,141 @@ wchar_t GetIconChar(VersionMessage msg)
 	return c;
 }
 
-void UpdateStaticText::Resize(SIZE size)
+bool UpdateStaticText::HasAnchor(UINT anchor) const
 {
-	RECT rcWindow;
-	GetWindowRect(&rcWindow);
-	if (rcWindow.right - rcWindow.left != size.cx || rcWindow.bottom - rcWindow.top != size.cy)
+	return (m_anchor & anchor) == anchor;
+}
+
+bool UpdateStaticText::UpdateLayout(SIZE size)
+{
+	// 1. 得到上级大小
+	RECT parentBound;
+	RECT curBound;
+	auto parent = GetParent();
+	parent.GetWindowRect(&parentBound);
+	GetWindowRect(&curBound);
+	RECT resultBound = curBound;
+	// 2. 如果同时有左右锚点，则左右确定左右，如果只有一边锚点，另一边按size
+	if (HasAnchor(ANCHOR_LEFT | ANCHOR_RIGHT))
 	{
-		// 还要看一下对齐方式
-		if (m_alignHori == Align::Near)
-		{
-			rcWindow.right = rcWindow.left + size.cx;
-		}
-		else
-		{
-			rcWindow.left = rcWindow.right - size.cx;
-		}
-
-		if (m_alignVert == Align::Near)
-		{
-			rcWindow.bottom = rcWindow.top + size.cy;
-		}
-		else
-		{
-			rcWindow.top = rcWindow.bottom - size.cy;
-		}
-
-		auto par = GetParent();
-		par.ScreenToClient(&rcWindow);
-		MoveWindow(&rcWindow);
-		par.InvalidateRect(&rcWindow);
+		resultBound.left = parentBound.left + m_offsetFromEdge.left;
+		resultBound.right = parentBound.right + m_offsetFromEdge.right;
 	}
+	else if (HasAnchor(ANCHOR_LEFT))
+	{
+		resultBound.left = parentBound.left + m_offsetFromEdge.left;
+		resultBound.right = resultBound.left + size.cx;
+	}
+	else if (HasAnchor(ANCHOR_RIGHT))
+	{
+		resultBound.right = parentBound.right + m_offsetFromEdge.right;
+		resultBound.left = resultBound.right - size.cx;
+	}
+	else
+	{
+		// 如果没有指定锚点，则直接按size设置大小
+		resultBound.right = resultBound.left + size.cx;
+	}
+
+	if (HasAnchor(ANCHOR_TOP | ANCHOR_RIGHT))
+	{
+		resultBound.top = parentBound.top + m_offsetFromEdge.top;
+		resultBound.bottom = parentBound.bottom + m_offsetFromEdge.bottom;
+	}
+	else if (HasAnchor(ANCHOR_TOP))
+	{
+		resultBound.top = parentBound.top + m_offsetFromEdge.top;
+		resultBound.bottom = resultBound.top + size.cy;
+	}
+	else if (HasAnchor(ANCHOR_BOTTOM))
+	{
+		resultBound.bottom = parentBound.bottom + m_offsetFromEdge.bottom;
+		resultBound.top = resultBound.bottom - size.cy;
+	}
+	else
+	{
+		resultBound.bottom = resultBound.top + size.cy;
+	}
+
+	if (memcmp(&resultBound, &curBound, sizeof(RECT)) != 0)
+	{
+		parent.ScreenToClient(&resultBound);
+		MoveWindow(&resultBound);
+		parent.InvalidateRect(&resultBound);
+		return true;
+	}
+	return false;
+}
+
+SIZE UpdateStaticText::CalcTextSize(HDC hdc, wchar_t c, LPCWSTR text, RECT* prcFlag, RECT* prcText)
+{
+	SIZE size = { 0 };
+	RECT rcFlag = { 0 };
+	RECT rcText = { 0 };
+	
+	CDCHandle dc{ hdc };
+	if (text[0] != 0)
+	{
+		dc.SetTextColor(m_clText);
+		dc.SetBkMode(TRANSPARENT);
+		if (m_ftText.IsNull()) SetFont(110, _T("Tahoma"));
+
+		SIZE sizeFlag = { 0 };
+		if (c != 0)
+		{
+			dc.SelectFont(m_ftWingdings);
+			dc.GetTextExtent(&c, 1, &sizeFlag);
+			//RECT rcMax = { 0, 0, 1000, 500 };
+			rcFlag.right = rcFlag.left + sizeFlag.cx;
+			rcFlag.bottom = rcFlag.top + sizeFlag.cy;
+		}
+
+		dc.SelectFont(m_ftText);
+		rcText.left = rcFlag.right + sizeFlag.cx / 4;
+		rcText.bottom = rcText.top + sizeFlag.cy;
+		//rcText.right = 
+		dc.DrawText(text, -1, &rcText, DT_SINGLELINE | DT_BOTTOM | DT_CALCRECT);
+
+		size.cx = rcText.right;
+		size.cy = std::max<>(sizeFlag.cy, rcText.bottom);
+	}
+
+	if (prcFlag) *prcFlag = rcFlag;
+	if (prcText) *prcText = rcText;
+	return size;
 }
 
 LRESULT UpdateStaticText::OnPaint(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
 	CPaintDC dc{m_hWnd};
 
-	SIZE size = { 0 };
-	RECT rcLeft = { 0 };
+	RECT rcFlag = { 0 };
 	RECT rcText = { 0 };
 
-	TCHAR buf[256] = { 0 };
 	wchar_t c = GetIconChar(m_latestMsg.get());
 
+	TCHAR buf[256] = { 0 };
 	GetWindowText(buf, 256);
-	if (buf[0] != 0)
+
+	if(SIZE size = CalcTextSize(dc, c, buf, &rcFlag, &rcText); !IsAutoSize() || !UpdateLayout(size))
 	{
-		dc.SetTextColor(m_clText);
-		dc.SetBkMode(TRANSPARENT);
-		if (m_ftText.IsNull()) SetFont(110, _T("Arial"));
-
-		dc.SelectFont(m_ftWingdings);
-
-		SIZE sizeFlag = { 0 };
-		dc.GetTextExtent(&c, 1, &sizeFlag);
-
-		RECT rcMax = {0, 0, 1000, 500};
-		rcLeft = rcMax;
-		rcLeft.right = rcLeft.left + sizeFlag.cx;
-		rcLeft.bottom = rcLeft.top + sizeFlag.cy;
-		dc.SelectFont(m_ftText);
-
-		rcText = rcMax;
-		rcText.left = rcLeft.right + sizeFlag.cx/4;
-		rcText.bottom = rcText.top + sizeFlag.cy;
-		dc.DrawText(buf, -1, &rcText, DT_SINGLELINE | DT_BOTTOM | DT_CALCRECT);
-
-		size.cx = rcText.right;
-		size.cy = std::max<>(sizeFlag.cy, rcText.bottom);
-	}
-
-	size.cx++;
-	size.cy++;
-
-	RECT rcWindow;
-	GetWindowRect(&rcWindow);
-	// 如果大小不对，则改大小先
-	if (m_bAutoSize && (rcWindow.right - rcWindow.left != size.cx || rcWindow.bottom - rcWindow.top != size.cy))
-	{
-		Resize(size);
-	}
-	else
-	{
+		RECT rcClient;
+		GetClientRect(&rcClient);
 		// 画图，按Align画在指定的角落
 		int offsetX = 0;
 		int offsetY = 0;
 		if (m_alignHori == Align::Far)
 		{
-			offsetX = rcWindow.right - rcWindow.left - size.cx;
+			offsetX = rcClient.right - rcClient.left - size.cx;
 		}
 		if (m_alignVert == Align::Far)
 		{
-			offsetY = rcWindow.bottom - rcWindow.top - size.cy;
+			offsetY = rcClient.bottom - rcClient.top - size.cy;
 		}
-		::OffsetRect(&rcLeft, offsetX, offsetY);
+		::OffsetRect(&rcFlag, offsetX, offsetY);
 		::OffsetRect(&rcText, offsetX, offsetY);
 		dc.SelectFont(m_ftWingdings);
-		dc.DrawText(&c, 1, &rcLeft, DT_SINGLELINE | DT_VCENTER);
+		dc.DrawText(&c, 1, &rcFlag, DT_SINGLELINE | DT_VCENTER);
 		dc.SelectFont(m_ftText);
 		dc.DrawText(buf, -1, &rcText, DT_SINGLELINE | DT_BOTTOM);
 	}
@@ -159,43 +197,36 @@ LRESULT UpdateStaticText::OnVersionInfoReceived(UINT uMsg, WPARAM wParam, LPARAM
 		}
 	}
 	
-
 	SetWindowText(ws.c_str());
-	RECT rc;
-	GetClientRect(&rc);
-	if (::IsRectEmpty(&rc))
+	if (IsAutoSize())
 	{
-		Resize({ 1,1 });
+		wchar_t c = GetIconChar(m_latestMsg.get());
+		SIZE size = CalcTextSize(CWindowDC(*this), c, ws.c_str(), nullptr, nullptr);
+		UpdateLayout(size);
 	}
-	Invalidate();
+	else
+	{
+		RECT rc = { 0 };
+		GetClientRect(&rc);
+		UpdateLayout({ rc.right, rc.bottom });
+	}
 
 	return 0;
+}
+
+bool UpdateStaticText::IsAutoSize() const
+{
+	return m_bAutoSize && !HasAnchor(ANCHOR_LEFT|ANCHOR_TOP|ANCHOR_TOP|ANCHOR_BOTTOM);
 }
 
 LRESULT UpdateStaticText::OnParentSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
 	bHandled = FALSE;
-	if (m_alignHori == Align::Far || m_alignVert == Align::Far)
+	if (m_anchor != ANCHOR_NONE)
 	{
-		auto parent = GetParent();
-		RECT curBound;
-		RECT parentBound;
-		GetWindowRect(&curBound);
-		parent.GetWindowRect(&parentBound);
-		int offsetX = 0;
-		int offsetY = 0;
-		if (m_alignHori == Align::Far)
-		{
-			offsetX = parentBound.right +  m_offsetFromEdge.right - curBound.right;
-		}
-		if (m_alignVert == Align::Far)
-		{
-			offsetY = parentBound.bottom + m_offsetFromEdge.bottom - curBound.bottom;
-		}
-		::OffsetRect(&curBound, offsetX, offsetY);
-		parent.ScreenToClient(&curBound);
-		MoveWindow(&curBound);
-		parent.InvalidateRect(&curBound);
+		RECT rc = { 0 };
+		GetClientRect(&rc);
+		UpdateLayout({rc.right, rc.bottom});
 	}
 	return 0;
 }
@@ -274,16 +305,17 @@ void UpdateStaticText::SetAlignment(Align H, Align V)
 {
 	m_alignHori = H;
 	m_alignVert = V;
+	Invalidate();
+}
 
+void UpdateStaticText::SetAnchor(UINT anchor)
+{
+	m_anchor = anchor;
 	UpdateOffsetFromEdge();
-
-	if (m_alignHori == Align::Far || m_alignVert == Align::Far)
+	if (anchor != ANCHOR_NONE && Parent.m_hWnd == nullptr)
 	{
-		if (Parent.m_hWnd == NULL)
-		{
-			Parent.SubclassWindow(GetParent());
-		}
-	}	
+		Parent.SubclassWindow(GetParent());
+	}
 }
 
 void UpdateStaticText::EnableManageUpdateInstance(bool enable)

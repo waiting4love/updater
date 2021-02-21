@@ -3,7 +3,7 @@
 /////////////////////////////////////////////////////////////////////////////
 
 #pragma once
-#include "../UpdateService/Exports.h"
+#include "../UpdateService/UpdateServiceExports.h"
 
 constexpr UINT WM_VERSION_RECEIVED = WM_USER + 1;
 class CMainDlg : public CDialogImpl<CMainDlg>

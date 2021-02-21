@@ -6,13 +6,31 @@
 #include <string_view>
 #include <functional>
 #include <stdexcept>
+#include <optional>
 
 namespace yaml {
 
 	class Value;
 	using Sequence = std::vector<Value>;
-
+	class Mapping;
 	class ParserContext;
+
+	template<class T>
+	class RefOptional {
+	private:
+		std::optional<std::reference_wrapper<const T>> opt;
+	public:
+		RefOptional() = default;
+		RefOptional(const T& v) :opt(v) {}
+		bool has_value() const { return opt.has_value(); }
+		const T& value() const { return opt.value().get(); }
+		const T& value_or(const T& default_value) const { return opt.value_or(default_value).get(); }
+	};
+
+	using ValueRef = RefOptional<Value>;
+	using SequenceRef = RefOptional<Sequence>;
+	using MappingRef = RefOptional<Mapping>;
+	using StringRef = RefOptional<std::string>;
 
 	class Mapping {
 	public:
@@ -21,10 +39,10 @@ namespace yaml {
 		using KeyValue = std::unordered_map<std::string, Value>;
 		const KeyValue& map() const { return map_; }
 
-		const Value& getValue(const std::string& name) const;
-		const Mapping& getMapping(const std::string& name) const;
-		const Sequence& getSequence(const std::string& name) const;
-		const std::string& getString(const std::string& name) const;
+		ValueRef getValue(const std::string& name) const;
+		MappingRef getMapping(const std::string& name) const;
+		SequenceRef getSequence(const std::string& name) const;
+		StringRef getString(const std::string& name) const;
 		const std::string& getString(const std::string& name, const std::string& default_value) const;
 
 		Mapping() = default;
@@ -41,31 +59,33 @@ namespace yaml {
 
 	class Value {
 	public:
-		const Mapping& getMapping() const {
-			if (type_ != Type::Mapping)
-				throw std::out_of_range("Value is not of Mapping type");
-			return std::cref(mapping_);
+		MappingRef getMapping() const {
+			if (type_ != Type::Mapping) return MappingRef{};
+			return mapping_;
 		}
 
-		const Sequence& getSequence() const {
-			if (type_ != Type::Sequence)
-				throw std::out_of_range("Value is not of Sequence type");
-			return std::cref(sequence_);
+		SequenceRef getSequence() const {
+			if (type_ != Type::Sequence) return SequenceRef{};
+			return sequence_;
 		}
 
-		const std::string& getString() const {
-			if (type_ != Type::String)
-				throw std::out_of_range("Value is not of String type");
-			return std::cref(string_);
+		StringRef getString() const {
+			if (type_ != Type::String) return StringRef{};
+			return string_;
 		}
 
 		bool isString() const { return type_ == Type::String; }
 		bool isMapping() const { return type_ == Type::Mapping; }
 		bool isSequence() const { return type_ == Type::Sequence; }
 
-		Value(std::string&& s) : type_(Type::String), string_(std::move(s)) {}
-		Value(Mapping&& mapping) : type_(Type::Mapping), mapping_(std::move(mapping)) {}
-		Value(Sequence&& sequence) : type_(Type::Sequence), sequence_(std::move(sequence)) {}
+		explicit Value(std::string&& s) : type_(Type::String), string_(std::move(s)) {}
+		explicit Value(Mapping&& mapping) : type_(Type::Mapping), mapping_(std::move(mapping)) {}
+		explicit Value(Sequence&& sequence) : type_(Type::Sequence), sequence_(std::move(sequence)) {}
+
+		static const Value& getEmpty() {
+			static Value empty{ "" };
+			return empty;
+		}
 
 	private:
 		friend class ParserContext;

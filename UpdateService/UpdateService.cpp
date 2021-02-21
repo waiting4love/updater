@@ -512,25 +512,26 @@ VersionInformation VersionInformation::createError(String message)
 bool VersionInformation::parse(const std::string& s)
 {
     try {
+        yaml::Sequence empty_seq;
         auto tree = yaml::parseString(s);
-        auto& status = tree.getMapping().getMapping("Status");
-        auto& local = status.getSequence("Local");
-        auto& remote = status.getSequence("Remote");
-        auto& whatnew = status.getSequence("New");
+        auto& status = tree.getMapping().value().getMapping("Status").value();
+        auto& local = status.getSequence("Local").value_or(empty_seq);
+        auto& remote = status.getSequence("Remote").value_or(empty_seq);
+        auto& whatnew = status.getSequence("New").value_or(empty_seq);
 
         Status.Local.clear();
-        std::transform(local.begin(), local.end(), std::back_inserter(Status.Local), [](auto& i) {return to_wstring(i.getString(), CP_ACP); });
+        std::transform(local.begin(), local.end(), std::back_inserter(Status.Local), [](auto& i) {return to_wstring(i.getString().value(), CP_ACP); });
 
         Status.Remote.clear();
-        std::transform(remote.begin(), remote.end(), std::back_inserter(Status.Remote), [](auto& i) {return to_wstring(i.getString(), CP_ACP); });
+        std::transform(remote.begin(), remote.end(), std::back_inserter(Status.Remote), [](auto& i) {return to_wstring(i.getString().value(), CP_ACP); });
 
         Status.New.clear();
         std::transform(
             whatnew.begin(), whatnew.end(), std::back_inserter(Status.New),
             [](auto& i) {
                 StringList lst;
-                auto& seq = i.getSequence();
-                std::transform(seq.begin(), seq.end(), std::back_inserter(lst), [](auto& i) {return to_wstring(i.getString()); });
+                auto& seq = i.getSequence().value();
+                std::transform(seq.begin(), seq.end(), std::back_inserter(lst), [](auto& i) {return to_wstring(i.getString().value()); });
                 return lst;
             }
         );

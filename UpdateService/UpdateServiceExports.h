@@ -9,6 +9,7 @@ bool __stdcall Update_IsAvailable();
 using UpdateReceivedEvent = void(__stdcall*)(void* param);
 bool __stdcall Update_StartWatch(int checkIntervalMs, UpdateReceivedEvent watcher, void* param);
 bool __stdcall Update_StopWatch();
+bool __stdcall Update_SetCheckInterval(int intervalMs);
 bool __stdcall Update_Wait(int timeoutMs);
 bool __stdcall Update_Perform(bool restart);
 bool __stdcall Update_IsError();
@@ -33,15 +34,24 @@ HWND __stdcall VersionMessageLabel_GetHandle(VersionMessageLabel);
 VersionMessage __stdcall VersionMessageLabel_GetVersionMessageRef(VersionMessageLabel);
 const size_t MAX_LABLE_LEN = 256;
 using ShowingLabelEvent = void (__stdcall*)(VersionMessageLabel, void* param, wchar_t* text); // max len = 256
+#define LABEL_TEXT_DEFALUT nullptr
+#define LABEL_TEXT_ALLCASE (ShowingLabelEvent)-1
 void __stdcall VersionMessageLabel_SetShowingLabelEvent(VersionMessageLabel, ShowingLabelEvent, void* param);
-// request_exit是用户点击update后的动作，让软件在10秒内退出。可自定义函数或特殊数字
+// request_exit is the action on user clicks update button, it should exit the software within 10 seconds.
+// it can be a function or special number, see below 
 using UnargEvent = void(__stdcall*)(void* param);
-const UnargEvent EXIT_WITH_MESSAGE = (UnargEvent)-1; // param = 0 will send WM_CLOSE, otherwise param is message id
-const UnargEvent EXIT_WITH_DESTROYWINDOW = (UnargEvent)-2;
-const UnargEvent EXIT_WITH_ENDDIALOG = (UnargEvent)-3;
+#define EXIT_BY_MESSAGE (UnargEvent)-1 // param = 0 will send WM_CLOSE, otherwise param is message id
+#define EXIT_BY_DESTROYWINDOW (UnargEvent)-2
+#define EXIT_BY_ENDDIALOG (UnargEvent)-3
 void __stdcall VersionMessageLabel_EnableShowBoxOnClick(VersionMessageLabel label, bool enable, UnargEvent request_exit, void* param);
 void __stdcall VersionMessageLabel_EnablePerformUpdateOnExit(VersionMessageLabel label, bool enable);
 void __stdcall VersionMessageLabel_EnableAutoSize(VersionMessageLabel label, bool enable);
 void __stdcall VersionMessageLabel_SetAlignment(VersionMessageLabel label, bool RightAlign, bool BottomAlign);
 void __stdcall VersionMessageLabel_SetColor(VersionMessageLabel label, COLORREF color);
 void __stdcall VersionMessageLabel_SetFont(VersionMessageLabel label, int nPointSize, LPCWSTR lpszFaceName);
+const UINT ANCHOR_NONE = 0b0000;
+const UINT ANCHOR_LEFT = 0b0001;
+const UINT ANCHOR_TOP = 0b0010;
+const UINT ANCHOR_RIGHT = 0b0100;
+const UINT ANCHOR_BOTTOM = 0b1000;
+void __stdcall VersionMessageLabel_SetAnchor(VersionMessageLabel label, UINT anchor);

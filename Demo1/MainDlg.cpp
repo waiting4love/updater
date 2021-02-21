@@ -22,32 +22,32 @@ void __stdcall CMainDlg::CloseApp(void* param)
 	dlg->EndDialog(0);
 }
 
-void __stdcall CMainDlg::MsgToText(VersionMessageLabel label, void*, wchar_t* text)
-{
-	auto msg = VersionMessageLabel_GetVersionMessageRef(label);
-	if (VersionMessage_IsError(msg))
-	{
-		VersionMessage_GetErrorMessage(msg, text, MAX_LABLE_LEN);
-	}
-	else if (VersionMessage_IsNewVersionReady(msg))
-	{
-		wchar_t buf[2048] = { 0 };
-		VersionMessage_GetRemoteMessage(msg, buf, 2048);
-		if (auto* ptr = wcschr(buf, L'\n'); ptr) *ptr = 0;
-		lstrcpynW(text, buf, MAX_LABLE_LEN);
-	}
-	else if (VersionMessage_IsNothing(msg))
-	{
-		lstrcpy(text, _T("Connecting..."));
-	}
-	else
-	{
-		wchar_t buf[2048] = { 0 };
-		VersionMessage_GetLocalMessage(msg, buf, 2048);
-		if (auto* ptr = wcschr(buf, L'\n'); ptr) *ptr = 0;
-		lstrcpynW(text, buf, MAX_LABLE_LEN);
-	}
-}
+//void __stdcall CMainDlg::MsgToText(VersionMessageLabel label, void*, wchar_t* text)
+//{
+//	auto msg = VersionMessageLabel_GetVersionMessageRef(label);
+//	if (VersionMessage_IsError(msg))
+//	{
+//		VersionMessage_GetErrorMessage(msg, text, MAX_LABLE_LEN);
+//	}
+//	else if (VersionMessage_IsNewVersionReady(msg))
+//	{
+//		wchar_t buf[2048] = { 0 };
+//		VersionMessage_GetRemoteMessage(msg, buf, 2048);
+//		if (auto* ptr = wcschr(buf, L'\n'); ptr) *ptr = 0;
+//		lstrcpynW(text, buf, MAX_LABLE_LEN);
+//	}
+//	else if (VersionMessage_IsNothing(msg))
+//	{
+//		lstrcpy(text, _T("Connecting..."));
+//	}
+//	else
+//	{
+//		wchar_t buf[2048] = { 0 };
+//		VersionMessage_GetLocalMessage(msg, buf, 2048);
+//		if (auto* ptr = wcschr(buf, L'\n'); ptr) *ptr = 0;
+//		lstrcpynW(text, buf, MAX_LABLE_LEN);
+//	}
+//}
 
 LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/)
 {
@@ -62,18 +62,20 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 
 	RECT rc;
 	GetClientRect(&rc);
-	rc.right -= 10;
-	rc.top += 10;
+	//rc.right -= 10;
+	//rc.top += 10;
 
 	auto lbl = VersionMessageLabel_Create(m_hWnd, &rc, 1001, true);
 	VersionMessageLabel_EnableAutoSize(lbl, true);
 	VersionMessageLabel_SetColor(lbl, ::GetSysColor(COLOR_HOTLIGHT));
-	VersionMessageLabel_SetAlignment(lbl, true, true);
-	VersionMessageLabel_SetFont(lbl, 140, L"Arial");
-	VersionMessageLabel_SetShowingLabelEvent(lbl, MsgToText, this);
+	//VersionMessageLabel_SetAlignment(lbl, true, true);
+	VersionMessageLabel_SetAnchor(lbl, ANCHOR_BOTTOM|ANCHOR_RIGHT);
+	//VersionMessageLabel_SetFont(lbl, 140, L"Arial");
+	VersionMessageLabel_SetShowingLabelEvent(lbl, LABEL_TEXT_ALLCASE, 0);
 	//VersionMessageLabel_EnableShowBoxOnClick(lbl, true, CloseApp, this);
-	VersionMessageLabel_EnableShowBoxOnClick(lbl, true, EXIT_WITH_MESSAGE, nullptr);
-	VersionMessageLabel_EnablePerformUpdateOnExit(lbl, true);
+	VersionMessageLabel_EnableShowBoxOnClick(lbl, true, EXIT_BY_MESSAGE, nullptr);
+	//VersionMessageLabel_EnablePerformUpdateOnExit(lbl, true);
+	Update_SetCheckInterval(1000);
 	return TRUE;
 }
 

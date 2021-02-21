@@ -1,5 +1,5 @@
 #include "pch.h"
-#include "Exports.h"
+#include "UpdateServiceExports.h"
 #include "UpdateService.h"
 #include "UpdateStaticText.h"
 #include "StringAlgo.h"
@@ -104,6 +104,16 @@ public:
 			return false;
 		}
 	}
+	bool SetCheckInterval(int intervalMs)
+	{
+		try {
+			service.setCheckInterval(intervalMs);
+			return true;
+		}
+		catch (...) {
+			return false;
+		}
+	}
 	bool Perform(bool restart)
 	{
 		try {
@@ -195,6 +205,10 @@ bool __stdcall Update_StartWatch(int checkIntervalMs, UpdateReceivedEvent watche
 bool __stdcall Update_StopWatch()
 {
 	return ExportHelper::GetInstance().StopWatch();
+}
+bool __stdcall Update_SetCheckInterval(int intervalMs)
+{
+	return ExportHelper::GetInstance().SetCheckInterval(intervalMs);
 }
 bool __stdcall Update_Perform(bool restart)
 {
@@ -333,16 +347,47 @@ VersionMessage __stdcall VersionMessageLabel_GetVersionMessageRef(VersionMessage
 	return sta->GetLatestMessage();
 }
 
+std::wstring GetSingleLineText(VersionMessage msg)
+{
+	auto vi = (VersionInformation*)msg;
+	if (vi->isError())
+	{
+		return vi->ErrorMessage;
+	}
+	else if (vi->isNewVersionReady())
+	{
+		return vi->Status.Remote[0];
+	}
+	else if (VersionMessage_IsNothing(msg))
+	{
+		return L"Connecting...";
+	}
+	else
+	{
+		return vi->Status.Local[0];
+	}
+}
+
 void __stdcall VersionMessageLabel_SetShowingLabelEvent(VersionMessageLabel label, ShowingLabelEvent func, void* param)
 {
 	auto sta = (UpdateStaticText*)label;
 	if (func)
 	{
-		sta->ShowingHandler = [label, func, param]() -> std::wstring {
-			wchar_t text[MAX_LABLE_LEN] = { 0 };
-			func(label, param, text);
-			return text;
-		};
+		if (func == LABEL_TEXT_ALLCASE)
+		{
+			sta->ShowingHandler = [label](){
+				auto msg = VersionMessageLabel_GetVersionMessageRef(label);
+				return GetSingleLineText(msg);
+			};
+		}
+		else
+		{
+			sta->ShowingHandler = [label, func, param](){
+				wchar_t text[MAX_LABLE_LEN] = { 0 };
+				func(label, param, text);
+				return text;
+			};
+		}
 	}
 	else
 	{
@@ -456,11 +501,11 @@ void __stdcall VersionMessageLabel_EnableShowBoxOnClick(VersionMessageLabel labe
 	auto sta = (UpdateStaticText*)label;
 	if (request_exit)
 	{
-		if(request_exit == EXIT_WITH_MESSAGE)
+		if(request_exit == EXIT_BY_MESSAGE)
 			sta->EnableShowBoxOnClick(enable, [label, msg = (param == nullptr ? WM_CLOSE : (UINT)param)]() { ::SendMessage(::GetAncestor(VersionMessageLabel_GetHandle(label), GA_ROOTOWNER), msg, 0, 0); });
-		else if(request_exit == EXIT_WITH_DESTROYWINDOW)
+		else if(request_exit == EXIT_BY_DESTROYWINDOW)
 			sta->EnableShowBoxOnClick(enable, [label]() { ::DestroyWindow(::GetAncestor(VersionMessageLabel_GetHandle(label), GA_ROOTOWNER));});
-		else if (request_exit == EXIT_WITH_ENDDIALOG)
+		else if (request_exit == EXIT_BY_ENDDIALOG)
 			sta->EnableShowBoxOnClick(enable, [label, param]() { ::EndDialog(::GetAncestor(VersionMessageLabel_GetHandle(label), GA_ROOTOWNER), (INT_PTR)param); });
 		else
 			sta->EnableShowBoxOnClick(enable, [request_exit, param]() {request_exit(param); });
@@ -501,4 +546,10 @@ void __stdcall VersionMessageLabel_SetFont(VersionMessageLabel label, int nPoint
 {
 	auto sta = (UpdateStaticText*)label;
 	sta->SetFont(nPointSize, lpszFaceName);
+}
+
+void __stdcall VersionMessageLabel_SetAnchor(VersionMessageLabel label, UINT anchor)
+{
+	auto sta = (UpdateStaticText*)label;
+	sta->SetAnchor(anchor);
 }
