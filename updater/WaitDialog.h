@@ -16,20 +16,57 @@ public:
 		Status status{ Status::Normal };
 		bool enable_cancel_button{ true };
 		bool cancelled{ false }; // user clicked cancel button
+		void setCompleted()
+		{
+			pos = 999;
+		}
+		void setMarquee()
+		{
+			pos = 0;
+		}
 	};
 
 	struct WaitArgsWithMutex : WaitArgs
 	{
-		mutable std::mutex mutex; // should lock before modify		
+		mutable std::mutex mutex; // should lock before modify	
+		void setError(std::wstring errStr)
+		{
+			std::scoped_lock sl{ mutex };
+			contantText = std::move(errStr);
+			status = WaitDialog::Status::Error;
+			enable_cancel_button = true;
+		}
 	};
+
+	static std::wstring to_wstring(std::string_view s, UINT code_page = CP_ACP);
 
 	static bool Show(WaitArgsWithMutex& args);
 
 	template<class Func>
-	static auto ShowAsync(Func&& func, WaitArgsWithMutex& args)
+	static decltype(auto) makeWaitDialogProc(const Func& func) {
+		return [&func](WaitDialog::WaitArgsWithMutex& args) {
+			try {
+				decltype(auto) res = func(args);
+				args.setCompleted();
+				return res;
+			}
+			catch (const std::exception& ex) {
+				args.setError(to_wstring(ex.what()));
+				throw;
+			}
+			catch (...) {
+				args.setError(L"An unexpected error has occurred");
+				throw;
+			}
+		};
+	}
+
+	template<class Func>
+	static auto ShowAsync(const Func& func, WaitArgsWithMutex& args)
 	{
-		auto fut = std::async(std::launch::async, std::forward<Func>(func), std::ref(args));
-		if (!Show(args)) args.cancelled = true;
+		auto fut = std::async(std::launch::async, makeWaitDialogProc(func), std::ref(args));
+		Show(args);
+		args.cancelled = true;
 		return fut.get();
 	}
 };

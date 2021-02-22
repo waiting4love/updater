@@ -52,12 +52,15 @@ void ReviserException::throwError()
 int ReviserException::getLastErrorCode()
 {
 	const git_error* e = giterr_last();
+	if (e == nullptr) return -1;
 	return e->klass;
 }
 
 const char* ReviserException::getLastErrorMessage()
 {
+	static const char empty_err[] = "unknown error";
 	const git_error* e = giterr_last();
+	if (e == nullptr) return empty_err;
 	return e->message;
 }
 

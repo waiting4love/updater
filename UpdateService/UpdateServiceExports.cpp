@@ -43,7 +43,7 @@ public:
 		if (!instance) Initialize();
 		return *instance;
 	}
-	bool IsAvailable() const
+	bool IsAvailable() const noexcept
 	{
 		try {
 			return service.isAvailable();
@@ -80,7 +80,7 @@ public:
 			cur_watcher(cur_watcher_param);
 		}
 	}
-	bool StartWatch(int checkIntervalMs, UpdateReceivedEvent watcher, void* param)
+	bool StartWatch(int checkIntervalMs, UpdateReceivedEvent watcher, void* param) noexcept
 	{
 		try {
 			std::scoped_lock sl{ mutexForWatcher };
@@ -94,7 +94,7 @@ public:
 			return false;
 		}
 	}
-	bool StopWatch()
+	bool StopWatch() noexcept
 	{
 		try {
 			service.stop();
@@ -104,7 +104,7 @@ public:
 			return false;
 		}
 	}
-	bool SetCheckInterval(int intervalMs)
+	bool SetCheckInterval(int intervalMs) noexcept
 	{
 		try {
 			service.setCheckInterval(intervalMs);
@@ -114,7 +114,7 @@ public:
 			return false;
 		}
 	}
-	bool Perform(bool restart)
+	bool Perform(bool restart) noexcept
 	{
 		try {
 			service.setRestartAppFlag(restart);
@@ -124,7 +124,7 @@ public:
 			return false;
 		}
 	}
-	bool IsError() const
+	bool IsError() const noexcept
 	{
 		try {
 			return service.isError();
@@ -133,7 +133,7 @@ public:
 			return false;
 		}
 	}
-	bool IsNothing() const
+	bool IsNothing() const noexcept
 	{
 		try {
 			return service.IsNothing();
@@ -154,7 +154,7 @@ public:
 		auto res = new VersionInformation(std::move(info));
 		return (VersionMessage)res;
 	}
-	bool IsNewVersionReady() const
+	bool IsNewVersionReady() const noexcept
 	{
 		try {
 			return service.isNewVersionReady();
@@ -163,7 +163,7 @@ public:
 			return false;
 		}
 	}
-	bool Wait(int timeoutMs)
+	bool Wait(int timeoutMs) noexcept
 	{
 		try {
 			return service.waitVersionInfo(timeoutMs);
@@ -175,7 +175,7 @@ public:
 	UpdateStaticText* CreateStaticText(HWND parent, LPRECT rect, UINT id)
 	{
 		auto* sta = new UpdateStaticText{};
-		sta->Create(parent, rect, NULL, 0, 0, id);
+		sta->Create(parent, rect, nullptr, 0, 0, id);
 		sta->SetWindowPos(HWND_TOP, rect, SWP_SHOWWINDOW);
 		HWND hwnd = *sta;
 		std::scoped_lock sl{ mutexForWatcher };
@@ -383,9 +383,9 @@ void __stdcall VersionMessageLabel_SetShowingLabelEvent(VersionMessageLabel labe
 		else
 		{
 			sta->ShowingHandler = [label, func, param](){
-				wchar_t text[MAX_LABLE_LEN] = { 0 };
-				func(label, param, text);
-				return text;
+				std::wstring ws(MAX_LABLE_LEN, L'\0');
+				func(label, param, ws.data());
+				return ws;
 			};
 		}
 	}
@@ -446,7 +446,7 @@ int __stdcall VersionMessage_ShowBox(VersionMessage msg, HWND parent, const wcha
 	else if (vi->isNewVersionReady())
 	{
 		taskDlg.SetMainIcon(TD_INFORMATION_ICON);
-		instructionText = _T("A New Version Is Available");
+		instructionText = vi->Status.Remote[0] + L" Is Available!";
 		if (vi->Status.New.empty())
 		{
 			contentText = to_content(vi->Status.Remote);

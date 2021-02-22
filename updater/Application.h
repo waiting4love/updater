@@ -21,10 +21,10 @@ public:
 
 	void runCmd(const std::string&);
 	bool doFetch(Reviser&);
-	bool doFetchGui(Reviser&);
+	bool doFetchGui(Reviser&) noexcept;
 	bool doFetchCl(Reviser&);
 
-	void showStatus(Reviser&);
+	void showStatus(Reviser&) const;
 	void showFiles(Reviser&);
 
 	bool doUpdate(Reviser&, bool reset);

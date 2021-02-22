@@ -10,14 +10,6 @@
 
 namespace progopt = boost::program_options;
 
-std::wstring to_wstring(const std::string& s, UINT code_page = CP_ACP)
-{
-	std::wstring ws;
-	ws.resize(::MultiByteToWideChar(code_page, 0, s.c_str(), s.length(), nullptr, 0));
-	::MultiByteToWideChar(code_page, 0, s.c_str(), s.length(), ws.data(), ws.size());
-	return ws;
-}
-
 auto make_handle_ptr(HANDLE h)
 {
 	return std::unique_ptr<
@@ -257,38 +249,24 @@ auto makeFetchGuiCallback(WaitDialog::WaitArgsWithMutex& args_w_m)
 	};
 }
 
-template<class Func>
-auto makeWaitDialogProc(const Func& func) {
-	return [&func](WaitDialog::WaitArgsWithMutex& args) {
-		std::wstring errStr;
-		try {
-			func(args);	args.pos = 999; //completed
-		} catch (const std::exception& ex) {
-			errStr = to_wstring(ex.what());
-		} catch (...) {
-			errStr = L"An unexpected error has occurred";
-		}
-		if (!errStr.empty()) {
-			std::scoped_lock sl{ args.mutex };
-			args.contantText = std::move(errStr);
-			args.status = WaitDialog::Status::Error;
-			args.enable_cancel_button = true;
-			return false;
-		}
-		return true;
-	};
-}
-
-bool Application::doFetchGui(Reviser& reviser)
+bool Application::doFetchGui(Reviser& reviser) noexcept
 {
 	WaitDialog::WaitArgsWithMutex args_w_m;
 	args_w_m.title = L"Update";
 	args_w_m.contantText = L"Downloading...";
 	args_w_m.instructionText = L"Connecting to remote server...";
 	args_w_m.enable_cancel_button = false;
-	return WaitDialog::ShowAsync(
-		makeWaitDialogProc([&reviser](auto& args) {reviser.fetch(makeFetchGuiCallback(args)); }),
-		args_w_m);
+
+	try {
+		WaitDialog::ShowAsync(
+			[&reviser](auto& args) {reviser.fetch(makeFetchGuiCallback(args)); return true; },
+			args_w_m
+		);
+		return true;
+	}
+	catch (...) {
+		return false;
+	}
 }
 
 void putLines(ryml::NodeRef& node, const std::string& lines)
@@ -302,7 +280,19 @@ void putLines(ryml::NodeRef& node, const std::string& lines)
 	}
 }
 
-void Application::showStatus(Reviser& reviser)
+template<class FUNC1, class FUNC2>
+void putToNode(FUNC1&& get_msg, FUNC2&& put_to_node) noexcept
+{
+	try {
+		auto res = std::forward<decltype(get_msg)>(get_msg)();
+		std::forward<decltype(put_to_node)>(put_to_node)(std::move(res));
+	}
+	catch(...) {
+		return;
+	}
+}
+
+void Application::showStatus(Reviser& reviser) const
 {
 	ryml::Tree tree;
 	auto r = tree.rootref();
@@ -311,37 +301,28 @@ void Application::showStatus(Reviser& reviser)
 	auto statusNode = r["Status"];
 	statusNode |= ryml::MAP;
 
-	try {
-		auto msg = reviser.getWorkDirVersionMessage();
-		auto node = statusNode["Local"];
-		putLines(node, msg);
-	}
-	catch (...)
-	{
-	}
+	putToNode(
+		[&reviser]() {return reviser.getWorkDirVersionMessage(); },
+		[&statusNode](const std::string& msg) { auto node = statusNode["Local"]; putLines(node, msg); }
+	);
 
-	try {
-		auto msg = reviser.getRemoteVersionMessage();
-		auto node = statusNode["Remote"];
-		putLines(node, msg);
-	}
-	catch (...)
-	{
-	}
+	putToNode(
+		[&reviser]() {return reviser.getRemoteVersionMessage(); },
+		[&statusNode](const std::string& msg) { auto node = statusNode["Remote"]; putLines(node, msg); }
+	);
 
-	try {
-		auto msgs = reviser.getDifferentVersionMessage();
-		auto node = statusNode["New"];
-		node |= ryml::SEQ;
-		for (const auto& msg : msgs)
-		{
-			auto nodeItem = node.append_child();
-			putLines(nodeItem, msg);
+	putToNode(
+		[&reviser]() {return reviser.getDifferentVersionMessage(); },
+		[&statusNode](const MessageList& msgs) {
+			auto node = statusNode["New"];
+			node |= ryml::SEQ;
+			for (const auto& msg : msgs)
+			{
+				auto nodeItem = node.append_child();
+				putLines(nodeItem, msg);
+			}
 		}
-	}
-	catch (...)
-	{
-	}
+	);
 
 	ryml::emit(tree);
 }
@@ -375,9 +356,16 @@ bool Application::doUpdate(Reviser& reviser, bool reset)
 		args_w_m.instructionText = L"Updating...";
 		args_w_m.contantText = L"Please Wait...";
 		args_w_m.enable_cancel_button = false;
-		return WaitDialog::ShowAsync(
-			makeWaitDialogProc([&reviser, reset](auto&) { reviser.sync(reset); }),
-			args_w_m);
+
+		try {
+			WaitDialog::ShowAsync(
+				[&reviser, reset](auto&) { reviser.sync(reset); return true; },
+				args_w_m);
+			return true;
+		}
+		catch (...) {
+			return false;
+		}
 	}
 	else
 	{
