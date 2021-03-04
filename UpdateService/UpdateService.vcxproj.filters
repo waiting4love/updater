@@ -39,6 +39,9 @@
     <ClInclude Include="UpdateServiceExports.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="LatestInstance.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp">
@@ -72,6 +75,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="UpdateServiceExports.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="LatestInstance.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

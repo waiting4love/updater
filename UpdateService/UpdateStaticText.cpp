@@ -132,6 +132,12 @@ SIZE UpdateStaticText::CalcTextSize(HDC hdc, wchar_t c, LPCWSTR text, RECT* prcF
 	return size;
 }
 
+LRESULT UpdateStaticText::OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+{
+	m_latestInst.Acquire();
+	return true;
+}
+
 LRESULT UpdateStaticText::OnPaint(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
 	CPaintDC dc{m_hWnd};
@@ -242,6 +248,8 @@ LRESULT UpdateStaticText::OnDestroy(UINT uMsg, WPARAM wParam, LPARAM lParam, BOO
 
 void UpdateStaticText::OnFinalMessage(HWND)
 {
+	m_latestInst.Release();
+
 	if (m_bManageUpdateInstance)
 	{
 		Update_StopWatch();
@@ -252,10 +260,10 @@ void UpdateStaticText::OnFinalMessage(HWND)
 	{
 		if (clock_type::now() - m_clkClickUpdateButton < std::chrono::seconds{ 10 })
 		{
-			// 最后一次点Update按钮10秒内，更新并重启
+			// 最后一次点Update按钮10秒内，更新并重启，且无视是否最后的程序
 			Update_Perform(true);
 		}
-		else if (m_bPerformUpdateOnExit)
+		else if (m_bPerformUpdateOnExit && !m_latestInst.Exists())
 		{
 			// 如果有更新标志，更新并退出
 			Update_Perform(false);
@@ -344,7 +352,6 @@ LRESULT UpdateStaticText::OnClick(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL&
 	
 	if (auto msg = GetLatestMessage(); VersionMessage_IsNewVersionReady(msg) && m_funcRequestExit)
 	{
-		//if (LPCTSTR buttons[] = { L"Update", L"Later" }; 1 == VersionMessage_ShowBox(msg, GetParent(), NULL, buttons, 2))
 		if (LPCTSTR buttons[] = { L"Update" }; 1 == VersionMessage_ShowBox(msg, GetParent(), NULL, buttons, 1))
 		{
 			m_clkClickUpdateButton = clock_type::now();

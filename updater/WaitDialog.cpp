@@ -46,8 +46,8 @@ struct WaitArgsPair
 		bool changed = false;
 #define IS_DIFF(x) bool c = args.x != Prev.x; (changed=changed||c), (First || c)
 
-		if(IS_DIFF(enable_cancel_button)) {
-			::SendMessage(hWnd, TDM_ENABLE_BUTTON, IDCANCEL, args.enable_cancel_button?TRUE:FALSE);
+		if(IS_DIFF(enableCancelButton)) {
+			::SendMessage(hWnd, TDM_ENABLE_BUTTON, IDCANCEL, args.enableCancelButton?TRUE:FALSE);
 		}
 
 		if (IS_DIFF(instructionText)) {

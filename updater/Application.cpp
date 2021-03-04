@@ -255,7 +255,7 @@ bool Application::doFetchGui(Reviser& reviser) noexcept
 	args_w_m.title = L"Update";
 	args_w_m.contantText = L"Downloading...";
 	args_w_m.instructionText = L"Connecting to remote server...";
-	args_w_m.enable_cancel_button = false;
+	args_w_m.enableCancelButton = false;
 
 	try {
 		WaitDialog::ShowAsync(
@@ -355,7 +355,7 @@ bool Application::doUpdate(Reviser& reviser, bool reset)
 		args_w_m.title = L"Update";
 		args_w_m.instructionText = L"Updating...";
 		args_w_m.contantText = L"Please Wait...";
-		args_w_m.enable_cancel_button = false;
+		args_w_m.enableCancelButton = false;
 
 		try {
 			WaitDialog::ShowAsync(

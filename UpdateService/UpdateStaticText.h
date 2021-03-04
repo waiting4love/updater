@@ -7,6 +7,7 @@
 #include <functional>
 #include <chrono>
 #include "UpdateServiceExports.h"
+#include "LatestInstance.h"
 
 class UpdateStaticText
 	:public CWindowImpl<UpdateStaticText, WTL::CStatic, CWinTraits<WS_CHILD | WS_VISIBLE | SS_OWNERDRAW | SS_NOTIFY, WS_EX_TRANSPARENT>>
@@ -22,6 +23,7 @@ public:
 		MESSAGE_HANDLER(WM_PAINT, OnPaint)
 		MESSAGE_HANDLER(WM_LBUTTONUP, OnClick)
 		MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
+		MESSAGE_HANDLER(WM_CREATE, OnCreate)
 		//MESSAGE_HANDLER(OCM__BASE + WM_SIZE, OnParentSize)
 		MESSAGE_HANDLER(MSG_VERSIONINFO_RECEVICED, OnVersionInfoReceived)
 		ALT_MSG_MAP(100)
@@ -30,6 +32,7 @@ public:
 	LRESULT OnPaint(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnClick(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnDestroy(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
+	LRESULT OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnParentSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnVersionInfoReceived(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	void OnFinalMessage(_In_ HWND /*hWnd*/) override;
@@ -50,6 +53,7 @@ public:
 	bool IsAutoSize() const;
 	bool HasAnchor(UINT) const;
 private:
+	LatestInstance m_latestInst;
 	WTL::CFont m_ftWingdings;
 	WTL::CFont m_ftText;
 	std::unique_ptr<std::remove_pointer_t<VersionMessage>, decltype(&VersionMessage_Destory)> m_latestMsg{ nullptr, &VersionMessage_Destory };

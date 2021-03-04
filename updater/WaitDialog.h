@@ -14,7 +14,7 @@ public:
 		std::wstring contantText;
 		std::wstring title;
 		Status status{ Status::Normal };
-		bool enable_cancel_button{ true };
+		bool enableCancelButton{ true };
 		bool cancelled{ false }; // user clicked cancel button
 		void setCompleted()
 		{
@@ -34,7 +34,7 @@ public:
 			std::scoped_lock sl{ mutex };
 			contantText = std::move(errStr);
 			status = WaitDialog::Status::Error;
-			enable_cancel_button = true;
+			enableCancelButton = true;
 		}
 	};
 
