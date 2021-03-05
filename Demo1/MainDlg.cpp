@@ -74,7 +74,7 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 	VersionMessageLabel_SetShowingLabelEvent(lbl, MsgToText, 0);
 	//VersionMessageLabel_EnableShowBoxOnClick(lbl, true, CloseApp, this);
 	VersionMessageLabel_EnableShowBoxOnClick(lbl, true, EXIT_BY_MESSAGE, nullptr);
-	VersionMessageLabel_EnablePerformUpdateOnExit(lbl, true);
+	// VersionMessageLabel_EnablePerformUpdateOnExit(lbl, true);
 	Update_SetCheckInterval(1000);
 	return TRUE;
 }

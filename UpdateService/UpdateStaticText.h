@@ -52,6 +52,7 @@ public:
 	SIZE CalcTextSize(HDC hdc, wchar_t c, LPCWSTR text, RECT* rcFlag, RECT* rcText);
 	bool IsAutoSize() const;
 	bool HasAnchor(UINT) const;
+	void InvalidateEx() const;
 private:
 	LatestInstance m_latestInst;
 	WTL::CFont m_ftWingdings;

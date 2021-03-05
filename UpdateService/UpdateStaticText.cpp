@@ -88,10 +88,23 @@ bool UpdateStaticText::UpdateLayout(SIZE size)
 	{
 		parent.ScreenToClient(&resultBound);
 		MoveWindow(&resultBound);
-		parent.InvalidateRect(&resultBound);
+		parent.Invalidate();
 		return true;
 	}
-	return false;
+	else
+	{
+		return false;
+	}
+}
+
+void UpdateStaticText::InvalidateEx() const
+{
+	RECT curBound;
+	auto parent = GetParent();
+	GetWindowRect(&curBound);
+	parent.ScreenToClient(&curBound);
+	parent.InvalidateRect(&curBound);
+	::InvalidateRect(m_hWnd, NULL, TRUE);
 }
 
 SIZE UpdateStaticText::CalcTextSize(HDC hdc, wchar_t c, LPCWSTR text, RECT* prcFlag, RECT* prcText)
@@ -203,18 +216,24 @@ LRESULT UpdateStaticText::OnVersionInfoReceived(UINT uMsg, WPARAM wParam, LPARAM
 		}
 	}
 	
+	TCHAR buf[256] = { 0 };
+	GetWindowText(buf, 256);
 	SetWindowText(ws.c_str());
-	if (IsAutoSize())
+	if (buf != ws)
 	{
-		wchar_t c = GetIconChar(m_latestMsg.get());
-		SIZE size = CalcTextSize(CWindowDC(*this), c, ws.c_str(), nullptr, nullptr);
-		UpdateLayout(size);
-	}
-	else
-	{
-		RECT rc = { 0 };
-		GetClientRect(&rc);
-		UpdateLayout({ rc.right, rc.bottom });
+		if (IsAutoSize())
+		{
+			wchar_t c = GetIconChar(m_latestMsg.get());
+			SIZE size = CalcTextSize(CWindowDC(*this), c, ws.c_str(), nullptr, nullptr);
+			UpdateLayout(size);
+		}
+		else
+		{
+			RECT rc = { 0 };
+			GetClientRect(&rc);
+			UpdateLayout({ rc.right, rc.bottom });
+		}
+		InvalidateEx();
 	}
 
 	return 0;
@@ -233,6 +252,7 @@ LRESULT UpdateStaticText::OnParentSize(UINT uMsg, WPARAM wParam, LPARAM lParam, 
 		RECT rc = { 0 };
 		GetClientRect(&rc);
 		UpdateLayout({rc.right, rc.bottom});
+		InvalidateEx();
 	}
 	return 0;
 }
