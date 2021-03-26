@@ -1,16 +1,17 @@
 #include "stdafx.h"
+#include "StringAlgo.h"
 #include "WaitDialog.h"
 #include <CommCtrl.h>
 
 #pragma comment(lib, "Comctl32.lib")
 
-std::wstring WaitDialog::to_wstring(std::string_view s, UINT code_page)
-{
-	std::wstring ws;
-	ws.resize(::MultiByteToWideChar(code_page, 0, s.data(), s.length(), nullptr, 0));
-	::MultiByteToWideChar(code_page, 0, s.data(), s.length(), ws.data(), ws.size());
-	return ws;
-}
+//std::wstring WaitDialog::to_wstring(std::string_view s, UINT code_page)
+//{
+//	std::wstring ws;
+//	ws.resize(::MultiByteToWideChar(code_page, 0, s.data(), s.length(), nullptr, 0));
+//	::MultiByteToWideChar(code_page, 0, s.data(), s.length(), ws.data(), ws.size());
+//	return ws;
+//}
 
 struct WaitArgsPair
 {

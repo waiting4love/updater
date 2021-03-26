@@ -2,6 +2,7 @@
 
 DECLARE_HANDLE(VersionMessage);
 DECLARE_HANDLE(VersionMessageLabel);
+DECLARE_HANDLE(VersionMessageWin);
 
 void __stdcall Update_Initialize();
 void __stdcall Update_Uninitialize();
@@ -33,10 +34,10 @@ void __stdcall VersionMessageLabel_Destory(VersionMessageLabel); // it is not ne
 HWND __stdcall VersionMessageLabel_GetHandle(VersionMessageLabel);
 VersionMessage __stdcall VersionMessageLabel_GetVersionMessageRef(VersionMessageLabel);
 const size_t MAX_LABLE_LEN = 256;
-using ShowingLabelEvent = void (__stdcall*)(VersionMessageLabel, void* param, wchar_t* text); // max len = 256
+using ShowingLabelEvent = void (__stdcall*)(VersionMessage, void* param, wchar_t* text); // max len = 256
 #define LABEL_TEXT_DEFALUT nullptr
 #define LABEL_TEXT_ALLCASE (ShowingLabelEvent)-1
-void __stdcall VersionMessageLabel_SetShowingLabelEvent(VersionMessageLabel, ShowingLabelEvent, void* param);
+void __stdcall VersionMessageLabel_SetShowingHandler(VersionMessageLabel, ShowingLabelEvent, void* param);
 // request_exit is the action on user clicks update button, it should exit the software within 10 seconds.
 // it can be a function or special number, see below 
 using UnargEvent = void(__stdcall*)(void* param);
@@ -46,7 +47,8 @@ using UnargEvent = void(__stdcall*)(void* param);
 void __stdcall VersionMessageLabel_EnableShowBoxOnClick(VersionMessageLabel label, bool enable, UnargEvent request_exit, void* param);
 void __stdcall VersionMessageLabel_EnablePerformUpdateOnExit(VersionMessageLabel label, bool enable);
 void __stdcall VersionMessageLabel_EnableAutoSize(VersionMessageLabel label, bool enable);
-void __stdcall VersionMessageLabel_SetAlignment(VersionMessageLabel label, bool RightAlign, bool BottomAlign);
+enum class Align: int { Near = 0, Far, Center };
+void __stdcall VersionMessageLabel_SetAlignment(VersionMessageLabel label, Align align, Align lineAlign);
 void __stdcall VersionMessageLabel_SetColor(VersionMessageLabel label, COLORREF color);
 void __stdcall VersionMessageLabel_SetFont(VersionMessageLabel label, int nPointSize, LPCWSTR lpszFaceName);
 const UINT ANCHOR_NONE = 0b0000;
@@ -54,4 +56,14 @@ const UINT ANCHOR_LEFT = 0b0001;
 const UINT ANCHOR_TOP = 0b0010;
 const UINT ANCHOR_RIGHT = 0b0100;
 const UINT ANCHOR_BOTTOM = 0b1000;
-void __stdcall VersionMessageLabel_SetAnchor(VersionMessageLabel label, UINT anchor);
+void __stdcall VersionMessageLabel_SetAnchor(VersionMessageLabel label, UINT anchor, int left, int top, int right, int bottom);
+
+VersionMessageWin __stdcall VersionMessageWin_Create(HWND parent);
+void __stdcall VersionMessageWin_SetShowingHandler(VersionMessageWin win, ShowingLabelEvent func, void* param);
+void __stdcall VersionMessageWin_SetColor(VersionMessageWin win, COLORREF bkColor, COLORREF textColor);
+void __stdcall VersionMessageWin_SetFont(VersionMessageWin win, int nPointSize, LPCTSTR lpszFaceName);
+void __stdcall VersionMessageWin_SetAnchor(VersionMessageWin win, UINT anchor, int left, int top, int right, int bottom);
+void __stdcall VersionMessageWin_EnableShowBoxOnClick(VersionMessageWin win, bool enable, UnargEvent request_exit, void* param);
+void __stdcall VersionMessageWin_EnablePerformUpdateOnExit(VersionMessageWin win, bool enable);
+VersionMessage __stdcall VersionMessageWin_GetVersionMessageRef(VersionMessageWin win);
+void __stdcall VersionMessageWin_SetTransparent(VersionMessageWin win, bool);

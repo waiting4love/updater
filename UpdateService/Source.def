@@ -26,7 +26,7 @@ EXPORTS
 	VersionMessageLabel_Destory
 	VersionMessageLabel_GetHandle
 	VersionMessageLabel_GetVersionMessageRef
-	VersionMessageLabel_SetShowingLabelEvent
+	VersionMessageLabel_SetShowingHandler
 	VersionMessageLabel_EnableShowBoxOnClick
 	VersionMessageLabel_EnableAutoSize
 	VersionMessageLabel_SetAlignment
@@ -34,3 +34,12 @@ EXPORTS
 	VersionMessageLabel_SetFont
 	VersionMessageLabel_EnablePerformUpdateOnExit
 	VersionMessageLabel_SetAnchor
+	VersionMessageWin_Create
+	VersionMessageWin_SetShowingHandler
+	VersionMessageWin_SetColor
+	VersionMessageWin_SetFont
+	VersionMessageWin_SetAnchor
+	VersionMessageWin_EnableShowBoxOnClick
+	VersionMessageWin_EnablePerformUpdateOnExit
+	VersionMessageWin_GetVersionMessageRef
+	VersionMessageWin_SetTransparent

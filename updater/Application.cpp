@@ -2,6 +2,7 @@
 #include "Application.h"
 #include "Reviser.h"
 #include "WaitDialog.h"
+#include "StringAlgo.h"
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 #include <ryml/ryml.hpp>
@@ -24,18 +25,18 @@ void Application::init()
 
 void Application::out(const std::string& s) const
 {
-	std::cout << s << std::endl;
+	std::wcout << to_wstring(s) << std::endl;
 }
 void Application::err(const std::string& s) const
 {
-	std::cerr << s << std::endl;
+	std::wcerr << to_wstring(s) << std::endl;
 }
 void Application::err(int exitCode, const std::string& s) const
 {
 	err(s);
 	if (show_dialog)
 	{
-		MessageBoxA(nullptr, s.c_str(), "Error", MB_ICONERROR);
+		MessageBoxW(nullptr, to_wstring(s).c_str(), L"Error", MB_ICONERROR);
 	}
 	std::exit(exitCode);
 }

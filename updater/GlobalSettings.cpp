@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "GlobalSettings.h"
+#include "StringAlgo.h"
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -23,9 +24,9 @@ void GlobalSettings::init()
 	WCHAR buff[MAX_PATH] = { 0 };
 	::GetModuleFileNameW(NULL, buff, MAX_PATH);
 	fs::path path{ buff };
-	exe_name = path.filename().string();
-	exe_path = path.parent_path().string();
-	exe_fullname = path.string();
+	exe_name = to_string(path.filename().wstring());
+	exe_path = to_string(path.parent_path().wstring());
+	exe_fullname = to_string(path.wstring());
 }
 
 void GlobalSettings::loadFromTree(void* ptree)
@@ -47,10 +48,10 @@ void GlobalSettings::loadFromTree(void* ptree)
 			fs::path pathLocalDir = local_dir;
 			if (pathLocalDir.is_relative())
 			{
-				fs::path path{ base_dir };
+				fs::path path{ to_wstring(base_dir) };
 				path /= pathLocalDir;
 				pathLocalDir = fs::weakly_canonical(path);
-				local_dir = pathLocalDir.string();
+				local_dir = to_string(pathLocalDir.wstring());
 			}
 		}
 	}
@@ -75,15 +76,15 @@ std::string GlobalSettings::saveToString() const
 
 bool GlobalSettings::loadFromFile(const std::string& file)
 {
-	fs::path pathFile{ file };
+	fs::path pathFile{ to_wstring(file) };
 	if (pathFile.is_relative())
 	{
-		fs::path p{ exe_path };
+		fs::path p{ to_wstring(exe_path) };
 		p /= pathFile;
 		pathFile = fs::weakly_canonical(p);
 	}
 
-	base_dir = pathFile.parent_path().string();
+	base_dir = to_string(pathFile.parent_path().wstring());
 
 	try {
 		std::ifstream ifs{ pathFile };

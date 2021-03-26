@@ -49,6 +49,10 @@ namespace Demo2
         public static readonly IntPtr EXIT_BY_MESSAGE = new IntPtr(-1);
         public static readonly IntPtr EXIT_BY_DESTROYWINDOW = new IntPtr(-2);
         public static readonly IntPtr EXIT_BY_ENDDIALOG = new IntPtr(-3);
+        public static readonly IntPtr LABEL_TEXT_ALLCASE = new IntPtr(-1);
+        public static readonly IntPtr LABEL_TEXT_DEFAULT = new IntPtr(0);
+
+        public enum Align { Near = 0, Far, Center };
 
         [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
         internal static extern IntPtr VersionMessageLabel_Create(IntPtr parent, ref Rect rect, uint id, bool manage_update_instance);
@@ -59,12 +63,27 @@ namespace Demo2
         [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
         internal static extern void VersionMessageLabel_EnableAutoSize(IntPtr label, bool enable);
         [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
-        internal static extern void VersionMessageLabel_SetAlignment(IntPtr label, bool RightAlign, bool BottomAlign);
+        internal static extern void VersionMessageLabel_SetAlignment(IntPtr label, Align align, Align lineAlign);
         [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
         internal static extern void VersionMessageLabel_SetColor(IntPtr label, COLORREF color);
         [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
         internal static extern void VersionMessageLabel_SetFont(IntPtr label, int nPointSize, String lpszFaceName);
         [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
-        internal static extern void VersionMessageLabel_SetAnchor(IntPtr label, Anchor anchor);
+        internal static extern void VersionMessageLabel_SetAnchor(IntPtr label, Anchor anchor, int left, int top, int right, int bottom);
+
+        [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
+        internal static extern IntPtr VersionMessageWin_Create(IntPtr parent);
+        [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
+        internal static extern void VersionMessageWin_SetShowingHandler(IntPtr win, IntPtr show_handler, IntPtr param);
+        [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
+        internal static extern void VersionMessageWin_SetColor(IntPtr win, COLORREF bkColor, COLORREF textColor);
+        [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
+        internal static extern void VersionMessageWin_SetFont(IntPtr win, int nPointSize, String lpszFaceName);
+        [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
+        internal static extern void VersionMessageWin_SetAnchor(IntPtr win, Anchor anchor, int left, int top, int right, int bottom);
+        [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
+        internal static extern void VersionMessageWin_EnableShowBoxOnClick(IntPtr win, bool enable, IntPtr request_exit, IntPtr param);
+        [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
+        internal static extern void VersionMessageWin_EnablePerformUpdateOnExit(IntPtr win, bool enable);
     }
 }

@@ -1,6 +1,7 @@
 #pragma once
 #include <functional>
 #include <mutex>
+#include "StringAlgo.h"
 #include <future>
 class WaitDialog
 {
@@ -38,7 +39,7 @@ public:
 		}
 	};
 
-	static std::wstring to_wstring(std::string_view s, UINT code_page = CP_ACP);
+	//static std::wstring to_wstring(std::string_view s, UINT code_page = CP_ACP);
 
 	static bool Show(WaitArgsWithMutex& args);
 

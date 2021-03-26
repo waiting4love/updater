@@ -76,7 +76,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);yaml-0.2.5\include;wtl</IncludePath>
-    <OutDir>$(SolutionDir)$(Configuration)\DEMO</OutDir>
+    <OutDir>$(SolutionDir)$(Configuration)\中文</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>

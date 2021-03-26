@@ -72,7 +72,7 @@ public:
 
 			std::for_each(
 				observers.begin(), observers.end(),
-				[](auto& ob) { ::PostMessage(ob.hwnd, UpdateStaticText::MSG_VERSIONINFO_RECEVICED, 0, 0); });
+				[](auto& ob) { ::PostMessage(ob.hwnd, MSG_VERSIONINFO_RECEVICED, 0, 0); });
 		}
 
 		if (cur_watcher != nullptr)
@@ -172,16 +172,27 @@ public:
 			return false;
 		}
 	}
-	UpdateStaticText* CreateStaticText(HWND parent, LPRECT rect, UINT id)
+	UpdateStaticText* CreateStaticText(HWND parent, LPRECT rect, UINT id, DWORD style=0, DWORD ex_style = 0)
 	{
 		auto* sta = new UpdateStaticText{};
-		sta->Create(parent, rect, nullptr, 0, 0, id);
-		sta->SetWindowPos(HWND_TOP, rect, SWP_SHOWWINDOW);
+		sta->Create(parent, rect, nullptr, style, ex_style, id);
+		//sta->SetWindowPos(HWND_TOP, rect, SWP_SHOWWINDOW);
 		HWND hwnd = *sta;
 		std::scoped_lock sl{ mutexForWatcher };
 		observers.push_back({ hwnd, ::GetParent(hwnd) });
 		return sta;
 	}
+
+	UpdateTextWin* CreateTextWin(HWND parent)
+	{
+		auto* sta = new UpdateTextWin{};
+		sta->Create(parent);
+		HWND hwnd = *sta;
+		std::scoped_lock sl{ mutexForWatcher };
+		observers.push_back({ hwnd, ::GetParent(hwnd) });
+		return sta;
+	}
+
 };
 std::unique_ptr<ExportHelper> ExportHelper::instance;
 
@@ -347,16 +358,29 @@ VersionMessage __stdcall VersionMessageLabel_GetVersionMessageRef(VersionMessage
 	return sta->GetLatestMessage();
 }
 
+std::wstring GetShortText(std::wstring s, size_t max_len)
+{
+	const wchar_t trim_chars[] = L". \t";
+	s.erase(0, s.find_first_not_of(trim_chars));
+	s.erase(s.find_last_not_of(trim_chars) + 1);
+	if (s.length() > max_len)
+	{
+		s = s.substr(0, max_len) + L"...";
+	}
+	return s;
+}
+
 std::wstring GetSingleLineText(VersionMessage msg)
 {
 	auto vi = (VersionInformation*)msg;
+	const size_t max_len = 64;
 	if (vi->isError())
-	{
-		return vi->ErrorMessage;
+	{		
+		return GetShortText(vi->ErrorMessage, max_len);
 	}
 	else if (vi->isNewVersionReady())
 	{
-		return vi->Status.Remote[0];
+		return GetShortText(vi->Status.Remote[0], max_len);
 	}
 	else if (VersionMessage_IsNothing(msg))
 	{
@@ -364,34 +388,35 @@ std::wstring GetSingleLineText(VersionMessage msg)
 	}
 	else
 	{
-		return vi->Status.Local[0];
+		return GetShortText(vi->Status.Local[0], max_len);
 	}
 }
 
-void __stdcall VersionMessageLabel_SetShowingLabelEvent(VersionMessageLabel label, ShowingLabelEvent func, void* param)
+void __stdcall VersionMessageLabel_SetShowingHandler(VersionMessageLabel label, ShowingLabelEvent func, void* param)
 {
 	auto sta = (UpdateStaticText*)label;
 	if (func)
 	{
 		if (func == LABEL_TEXT_ALLCASE)
 		{
-			sta->ShowingHandler = [label](){
+			sta->SetShowingHandler([label](){
 				auto msg = VersionMessageLabel_GetVersionMessageRef(label);
 				return GetSingleLineText(msg);
-			};
+			});
 		}
 		else
 		{
-			sta->ShowingHandler = [label, func, param](){
+			sta->SetShowingHandler([label, func, param](){
 				std::wstring ws(MAX_LABLE_LEN, L'\0');
-				func(label, param, ws.data());
+				auto msg = VersionMessageLabel_GetVersionMessageRef(label);
+				func(msg, param, ws.data());
 				return ws;
-			};
+			});
 		}
 	}
 	else
 	{
-		sta->ShowingHandler = decltype(sta->ShowingHandler){};
+		sta->SetShowingHandler({});
 	}
 }
 
@@ -527,13 +552,10 @@ void __stdcall VersionMessageLabel_EnablePerformUpdateOnExit(VersionMessageLabel
 	sta->EnablePerformUpdateOnExit(enable);
 }
 
-void __stdcall VersionMessageLabel_SetAlignment(VersionMessageLabel label, bool RightAlign, bool BottomAlign)
+void __stdcall VersionMessageLabel_SetAlignment(VersionMessageLabel label, Align align, Align lineAlign)
 {
 	auto sta = (UpdateStaticText*)label;
-	sta->SetAlignment(
-		RightAlign? UpdateStaticText::Align::Far : UpdateStaticText::Align::Near,
-		BottomAlign ? UpdateStaticText::Align::Far : UpdateStaticText::Align::Near
-		);
+	sta->SetAlignment(align, lineAlign);
 }
 
 void __stdcall VersionMessageLabel_SetColor(VersionMessageLabel label, COLORREF color)
@@ -548,8 +570,97 @@ void __stdcall VersionMessageLabel_SetFont(VersionMessageLabel label, int nPoint
 	sta->SetFont(nPointSize, lpszFaceName);
 }
 
-void __stdcall VersionMessageLabel_SetAnchor(VersionMessageLabel label, UINT anchor)
+void __stdcall VersionMessageLabel_SetAnchor(VersionMessageLabel label, UINT anchor, int left, int top, int right, int bottom)
 {
 	auto sta = (UpdateStaticText*)label;
-	sta->SetAnchor(anchor);
+	sta->SetAnchor(anchor, left, top, right, bottom);
+}
+
+VersionMessageWin __stdcall VersionMessageWin_Create(HWND parent)
+{
+	auto res = ExportHelper::GetInstance().CreateTextWin(parent);
+	Update_Initialize();
+	Update_StartWatch(60'000, nullptr, nullptr);
+	return (VersionMessageWin)res;
+}
+void __stdcall VersionMessageWin_SetShowingHandler(VersionMessageWin win, ShowingLabelEvent func, void* param)
+{
+	auto w = (UpdateTextWin*)win;
+	if (func)
+	{
+		if (func == LABEL_TEXT_ALLCASE)
+		{
+			w->SetShowingHandler([w]() {
+				auto msg = w->GetLatestMessage();
+				auto ws = GetSingleLineText(msg);
+				if (VersionMessage_IsNewVersionReady(msg))
+				{
+					ws += L" is ready!";
+				}
+				return ws;
+			});
+		}
+		else
+		{
+			w->SetShowingHandler([w, func, param]() {
+				std::wstring ws(MAX_LABLE_LEN, L'\0');
+				auto msg = w->GetLatestMessage();
+				func(msg, param, ws.data());
+				return ws;
+			});
+		}
+	}
+	else
+	{
+		w->SetShowingHandler({});
+	}
+}
+void __stdcall VersionMessageWin_SetColor(VersionMessageWin win, COLORREF bkColor, COLORREF textColor)
+{
+	auto w = (UpdateTextWin*)win;
+	w->SetColor(bkColor, textColor);
+}
+void __stdcall VersionMessageWin_SetFont(VersionMessageWin win, int nPointSize, LPCTSTR lpszFaceName)
+{
+	auto w = (UpdateTextWin*)win;
+	w->SetFont(nPointSize, lpszFaceName);
+}
+void __stdcall VersionMessageWin_SetAnchor(VersionMessageWin win, UINT anchor, int left, int top, int right, int bottom)
+{
+	auto w = (UpdateTextWin*)win;
+	w->SetAnchor(anchor, left, top, right, bottom);
+}
+void __stdcall VersionMessageWin_EnableShowBoxOnClick(VersionMessageWin win, bool enable, UnargEvent request_exit, void* param)
+{
+	auto w = (UpdateTextWin*)win;
+	if (request_exit)
+	{
+		if (request_exit == EXIT_BY_MESSAGE)
+			w->EnableShowBoxOnClick(enable, [w, msg = (param == nullptr ? WM_CLOSE : (UINT)param)]() { ::SendMessage(::GetAncestor(w->GetParent(), GA_ROOTOWNER), msg, 0, 0); });
+		else if (request_exit == EXIT_BY_DESTROYWINDOW)
+			w->EnableShowBoxOnClick(enable, [w]() { ::DestroyWindow(::GetAncestor(w->GetParent(), GA_ROOTOWNER)); });
+		else if (request_exit == EXIT_BY_ENDDIALOG)
+			w->EnableShowBoxOnClick(enable, [w, param]() { ::EndDialog(::GetAncestor(w->GetParent(), GA_ROOTOWNER), (INT_PTR)param); });
+		else
+			w->EnableShowBoxOnClick(enable, [request_exit, param]() {request_exit(param); });
+	}
+	else
+	{
+		w->EnableShowBoxOnClick(enable, {});
+	}
+}
+void __stdcall VersionMessageWin_EnablePerformUpdateOnExit(VersionMessageWin win, bool enable)
+{
+	auto w = (UpdateTextWin*)win;
+	w->EnablePerformUpdateOnExit(enable);
+}
+VersionMessage __stdcall VersionMessageWin_GetVersionMessageRef(VersionMessageWin win)
+{
+	auto w = (UpdateTextWin*)win;
+	return w->GetLatestMessage();
+}
+void __stdcall VersionMessageWin_SetTransparent(VersionMessageWin win, bool trans)
+{
+	auto w = (UpdateTextWin*)win;
+	w->SetTransparent(trans);
 }

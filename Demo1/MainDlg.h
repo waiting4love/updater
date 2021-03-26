@@ -16,6 +16,7 @@ public:
 		COMMAND_ID_HANDLER(IDOK, OnOK)
 		COMMAND_ID_HANDLER(IDCANCEL, OnCancel)
 		COMMAND_ID_HANDLER(1001, OnVersionClick)
+		MESSAGE_HANDLER(WM_SHOWWINDOW, OnShow)
 		MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
 		MESSAGE_HANDLER(WM_VERSION_RECEIVED, OnVersionReceived)
 	END_MSG_MAP()
@@ -26,6 +27,7 @@ public:
 //	LRESULT NotifyHandler(int /*idCtrl*/, LPNMHDR /*pnmh*/, BOOL& /*bHandled*/)
 
 	LRESULT OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
+	LRESULT OnShow(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnDestroy(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	LRESULT OnAppAbout(WORD /*wNotifyCode*/, WORD /*wID*/, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
 	LRESULT OnOK(WORD /*wNotifyCode*/, WORD wID, HWND /*hWndCtl*/, BOOL& /*bHandled*/);
@@ -36,6 +38,6 @@ public:
 	LRESULT OnVersionReceived(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BOOL& /*bHandled*/);
 	static void __stdcall VersionInfoReceived(void* param);
 	static void __stdcall CloseApp(void* param);
-	static void __stdcall MsgToText(VersionMessageLabel label, void*, wchar_t* text);
+	static void __stdcall MsgToText(VersionMessage msg, void*, wchar_t* text);
 
 };
