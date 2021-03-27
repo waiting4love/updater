@@ -309,7 +309,7 @@ public:
 			}
 
 			s = s + L" is available!";
-			ws = to_wstring(s);
+			ws = std::move(s);
 		}
 
 		return ws;
@@ -621,9 +621,13 @@ LRESULT UpdateTextWin::OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& b
 	//}
 
 	//int rightEdge = mostLeft - infoEx.rcTitleBar.right - 5;
-	int rightEdge = -145;
+
+	//int rightEdge = -145;
+
+	int rightEdge = int(CWindowDC(ParentWnd).GetDeviceCaps(LOGPIXELSX) * 1.5);
+
 	RECT rc = {
-		0, 3, rightEdge, 0
+		0, 3, -rightEdge, 0
 	};
 	core->SetOffsetFromEdge(rc);
 	Parent.SubclassWindow(ParentWnd);

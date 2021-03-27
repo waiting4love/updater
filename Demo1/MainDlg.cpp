@@ -65,7 +65,7 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 	VersionMessageLabel_SetAnchor(lbl, ANCHOR_BOTTOM|ANCHOR_RIGHT, 0, 0, 0, 0);
 	//VersionMessageLabel_EnableAutoSize(lbl, true);
 	//VersionMessageLabel_SetFont(lbl, 140, L"Arial");
-	//VersionMessageLabel_SetShowingHandler(lbl, LABEL_TEXT_ALLCASE, 0);
+	VersionMessageLabel_SetShowingHandler(lbl, LABEL_TEXT_ALLCASE, 0);
 	//VersionMessageLabel_EnableShowBoxOnClick(lbl, true, CloseApp, this);
 	//VersionMessageLabel_EnableShowBoxOnClick(lbl, true, EXIT_BY_MESSAGE, nullptr);
 	// VersionMessageLabel_EnablePerformUpdateOnExit(lbl, true);
@@ -83,8 +83,9 @@ LRESULT CMainDlg::OnShow(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BO
 	auto w = VersionMessageWin_Create(m_hWnd);
 	//VersionMessageWin_SetAnchor(w, ANCHOR_TOP | ANCHOR_RIGHT, 0, -20, -10, 0);
 	VersionMessageWin_SetShowingHandler(w, LABEL_TEXT_ALLCASE, 0);
+	VersionMessageWin_SetColor(w, 0xf0fff0, 0x0);
 	//VersionMessageWin_SetTransparent(w, false);
-	//Update_SetCheckInterval(1000);
+	Update_SetCheckInterval(1000);
 	return 0;
 }
 

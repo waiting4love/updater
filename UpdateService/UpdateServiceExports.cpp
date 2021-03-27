@@ -392,6 +392,20 @@ std::wstring GetSingleLineText(VersionMessage msg)
 	}
 }
 
+std::wstring GetAllCaseText(VersionMessage msg)
+{
+	if (Update_IsAvailable())
+	{
+		auto ws = GetSingleLineText(msg);
+		if (VersionMessage_IsNewVersionReady(msg))
+		{
+			ws += L" is ready!";
+		}
+		return ws;
+	}
+	return {};
+}
+
 void __stdcall VersionMessageLabel_SetShowingHandler(VersionMessageLabel label, ShowingLabelEvent func, void* param)
 {
 	auto sta = (UpdateStaticText*)label;
@@ -401,7 +415,7 @@ void __stdcall VersionMessageLabel_SetShowingHandler(VersionMessageLabel label, 
 		{
 			sta->SetShowingHandler([label](){
 				auto msg = VersionMessageLabel_GetVersionMessageRef(label);
-				return GetSingleLineText(msg);
+				return GetAllCaseText(msg);
 			});
 		}
 		else
@@ -441,7 +455,7 @@ std::wstring to_content(const StringList& sl, bool skipEmpty = false)
 			}
 			else
 			{
-				ws += _T("\n-  ") + to_wstring(s);
+				ws += _T("\n-  ") + s;
 			}
 		}
 		idx++;
@@ -466,7 +480,7 @@ int __stdcall VersionMessage_ShowBox(VersionMessage msg, HWND parent, const wcha
 	{
 		taskDlg.SetMainIcon(TD_ERROR_ICON);
 		instructionText = _T("An Error Occurs");
-		contentText = to_wstring(vi->ErrorMessage);
+		contentText = vi->ErrorMessage;
 	}
 	else if (vi->isNewVersionReady())
 	{
@@ -592,12 +606,7 @@ void __stdcall VersionMessageWin_SetShowingHandler(VersionMessageWin win, Showin
 		{
 			w->SetShowingHandler([w]() {
 				auto msg = w->GetLatestMessage();
-				auto ws = GetSingleLineText(msg);
-				if (VersionMessage_IsNewVersionReady(msg))
-				{
-					ws += L" is ready!";
-				}
-				return ws;
+				return GetAllCaseText(msg);
 			});
 		}
 		else
