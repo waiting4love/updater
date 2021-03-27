@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "StringAlgo.h"
 #include <algorithm>
+#include <cwctype>
 
 std::wstring to_wstring(std::wstring s)
 {
@@ -30,10 +31,10 @@ std::string to_string(std::wstring_view ws, UINT code_page)
 
 bool isEmptyOrSpace(std::string_view s)
 {
-	return std::all_of(s.begin(), s.end(), [](char c)->bool {return std::isspace(c); });
+	return std::all_of(s.begin(), s.end(), [](unsigned char c)->bool {return std::isspace(c); });
 }
 
 bool isEmptyOrSpace(std::wstring_view s)
 {
-	return std::all_of(s.begin(), s.end(), [](wchar_t c)->bool {return std::isspace(c); });
+	return std::all_of(s.begin(), s.end(), [](wchar_t c)->bool {return std::iswspace(c); });
 }

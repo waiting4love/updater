@@ -58,7 +58,7 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 	SetIcon(hIcon, TRUE);
 	HICON hIconSmall = AtlLoadIconImage(IDR_MAINFRAME, LR_DEFAULTCOLOR, ::GetSystemMetrics(SM_CXSMICON), ::GetSystemMetrics(SM_CYSMICON));
 	SetIcon(hIconSmall, FALSE);
-	/*
+	
 	auto lbl = VersionMessageLabel_Create(m_hWnd, NULL, 1001, true);
 	//VersionMessageLabel_SetColor(lbl, ::GetSysColor(COLOR_HOTLIGHT));
 	//VersionMessageLabel_SetAlignment(lbl, true, true);
@@ -69,7 +69,7 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 	//VersionMessageLabel_EnableShowBoxOnClick(lbl, true, CloseApp, this);
 	//VersionMessageLabel_EnableShowBoxOnClick(lbl, true, EXIT_BY_MESSAGE, nullptr);
 	// VersionMessageLabel_EnablePerformUpdateOnExit(lbl, true);
-	*/
+	
 	//auto w = VersionMessageWin_Create(m_hWnd);
 	////VersionMessageWin_SetAnchor(w, ANCHOR_TOP | ANCHOR_RIGHT, 0, -20, -10, 0);
 	//VersionMessageWin_SetShowingHandler(w, LABEL_TEXT_ALLCASE, 0);

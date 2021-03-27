@@ -24,16 +24,16 @@ void GlobalSettings::init()
 	WCHAR buff[MAX_PATH] = { 0 };
 	::GetModuleFileNameW(NULL, buff, MAX_PATH);
 	fs::path path{ buff };
-	exe_name = to_string(path.filename().wstring());
-	exe_path = to_string(path.parent_path().wstring());
-	exe_fullname = to_string(path.wstring());
+	exe_name = path.filename().wstring();
+	exe_path = path.parent_path().wstring();
+	exe_fullname = path.wstring();
 }
 
 void GlobalSettings::loadFromTree(void* ptree)
 {
-	remote_url = "";
-	branch = "";
-	local_dir = "..";
+	remote_url = L"";
+	branch = L"";
+	local_dir = L"..";
 
 	ryml::Tree& tree = *(ryml::Tree*)ptree;
 	if (tree.size() > 2)
@@ -41,17 +41,26 @@ void GlobalSettings::loadFromTree(void* ptree)
 		if (auto root = tree.rootref(); root.valid() && root.has_child("git"))
 		{
 			auto git_node = root["git"];
-			git_node.get_if<std::string>("remote", &remote_url, "");
-			git_node.get_if<std::string>("branch", &branch, "");
-			git_node.get_if<std::string>("local", &local_dir, "..");
+
+			std::string u8_remote_url = "";
+			std::string u8_branch = "";
+			std::string u8_local_dir = "..";
+
+			git_node.get_if<std::string>("remote", &u8_remote_url, "");
+			git_node.get_if<std::string>("branch", &u8_branch, "");
+			git_node.get_if<std::string>("local", &u8_local_dir, "..");
+
+			remote_url = to_wstring(u8_remote_url);
+			branch = to_wstring(u8_branch);
+			local_dir = to_wstring(u8_local_dir);
 
 			fs::path pathLocalDir = local_dir;
 			if (pathLocalDir.is_relative())
 			{
-				fs::path path{ to_wstring(base_dir) };
+				fs::path path{ base_dir };
 				path /= pathLocalDir;
 				pathLocalDir = fs::weakly_canonical(path);
-				local_dir = to_string(pathLocalDir.wstring());
+				local_dir = pathLocalDir.wstring();
 			}
 		}
 	}
@@ -65,26 +74,26 @@ std::string GlobalSettings::saveToString() const
 	auto node_git = r["git"];
 	node_git |= ryml::MAP;
 
-	node_git["remote"] << remote_url;
-	node_git["branch"] << branch;
-	node_git["local"] << local_dir;
+	node_git["remote"] << to_string(remote_url);
+	node_git["branch"] << to_string(branch);
+	node_git["local"] << to_string(local_dir);
 
 	char buff[2048] = { 0 };	
 	auto res = ryml::emit(tree, buff);
 	return { res.begin(), res.end() };
 }
 
-bool GlobalSettings::loadFromFile(const std::string& file)
+bool GlobalSettings::loadFromFile(const std::wstring& file)
 {
-	fs::path pathFile{ to_wstring(file) };
+	fs::path pathFile{ file };
 	if (pathFile.is_relative())
 	{
-		fs::path p{ to_wstring(exe_path) };
+		fs::path p{ exe_path };
 		p /= pathFile;
 		pathFile = fs::weakly_canonical(p);
 	}
 
-	base_dir = to_string(pathFile.parent_path().wstring());
+	base_dir = pathFile.parent_path().wstring();
 
 	try {
 		std::ifstream ifs{ pathFile };
@@ -130,7 +139,7 @@ bool GlobalSettings::loadFromSelf()
 	return false;
 }
 
-bool GlobalSettings::createSelfExe(const std::string& outfile)
+bool GlobalSettings::createSelfExe(const std::wstring& outfile) const
 {
 	std::ofstream ofs{ outfile, std::ios::binary };
 	if (!ofs) return false;
@@ -171,37 +180,37 @@ bool GlobalSettings::createSelfExe(const std::string& outfile)
 	return true;
 }
 
-const std::string& GlobalSettings::getExeName() const
+const std::wstring& GlobalSettings::getExeName() const
 {
 	return exe_name;
 }
 
-const std::string& GlobalSettings::getExeFullName() const
+const std::wstring& GlobalSettings::getExeFullName() const
 {
 	return exe_fullname;
 }
 
-const std::string& GlobalSettings::getExePath() const
+const std::wstring& GlobalSettings::getExePath() const
 {
 	return exe_path;
 }
 
-const std::string& GlobalSettings::getRemoteUrl() const
+const std::wstring& GlobalSettings::getRemoteUrl() const
 {
 	return remote_url;
 }
 
-const std::string& GlobalSettings::getBranch() const
+const std::wstring& GlobalSettings::getBranch() const
 {
 	return branch;
 }
 
-const std::string& GlobalSettings::getLocalDir() const
+const std::wstring& GlobalSettings::getLocalDir() const
 {
 	return local_dir;
 }
 
-const std::string& GlobalSettings::getBaseDir() const
+const std::wstring& GlobalSettings::getBaseDir() const
 {
 	return base_dir;
 }

@@ -23,46 +23,46 @@ void Application::init()
 	global_settings.init();
 }
 
-void Application::out(const std::string& s) const
+void Application::out(const std::wstring& s) const
 {
-	std::wcout << to_wstring(s) << std::endl;
+	std::cout << to_string(s) << std::endl;
 }
-void Application::err(const std::string& s) const
+void Application::err(const std::wstring& s) const
 {
-	std::wcerr << to_wstring(s) << std::endl;
+	std::cerr << to_string(s) << std::endl;
 }
-void Application::err(int exitCode, const std::string& s) const
+void Application::err(int exitCode, const std::wstring& s) const
 {
 	err(s);
 	if (show_dialog)
 	{
-		MessageBoxW(nullptr, to_wstring(s).c_str(), L"Error", MB_ICONERROR);
+		MessageBoxW(nullptr, s.c_str(), L"Error", MB_ICONERROR);
 	}
 	std::exit(exitCode);
 }
 int Application::run()
 {
-	auto args = progopt::split_winmain(GetCommandLineA());
+	auto args = progopt::split_winmain(GetCommandLineW());
 
 	progopt::options_description desc("Update tool, Allowed options");
 	desc.add_options()
 		("help,h", "produce help message")
-		("config,c", progopt::value<std::string>(), "config file name")
-		("output,o", progopt::value<std::string>(), "output updater exefile name")
+		("config,c", progopt::wvalue<std::wstring>(), "config file name")
+		("output,o", progopt::wvalue<std::wstring>(), "output updater exefile name")
 		("fetch,f", "Download objects and refs from another repository")
 		("get-files,g", "Get files status")
 		("get-log,l", "Get version status")
 		("do-update,u", "Perform update, don't remove untracked files")
 		("do-reset,r", "Perform update, remove untracked files")
-		("before,b", progopt::value<std::string>(), "run a command before update")
-		("after,a", progopt::value<std::string>(), "run a command after update")
-		("wait,w", progopt::value<int>(), "process id, wait it exit (5s).")
+		("before,b", progopt::wvalue<std::wstring>(), "run a command before update")
+		("after,a", progopt::wvalue<std::wstring>(), "run a command after update")
+		("wait,w", progopt::wvalue<int>(), "process id, wait it exit (5s).")
 		("gui", "Show GUI dialog")
 		("no-console", "Do not show console window")
 		("restart", "restart software after updated, work with --wait argument");
 
 	progopt::variables_map vm;
-	progopt::store(progopt::command_line_parser{ args }.options(desc).run(), vm);
+	progopt::store(progopt::wcommand_line_parser{ args }.options(desc).run(), vm);
 
 	show_dialog = vm.find("gui") != vm.end();
 
@@ -72,7 +72,7 @@ int Application::run()
 		::ShowWindow(hwndCon, SW_HIDE);
 	}
 
-	std::string restart_request;
+	std::wstring restart_request;
 	if (auto itr = vm.find("wait"); itr != vm.end())
 	{
 		auto proc_id = itr->second.as<int>();
@@ -88,45 +88,45 @@ int Application::run()
 
 	if (auto itr = vm.find("before"); itr != vm.end())
 	{
-		auto cmd = itr->second.as<std::string>();
+		auto cmd = itr->second.as<std::wstring>();
 		runCmd(cmd);
 	}
 
 	if (vm.empty() || vm.find("help") != vm.end()) {
 		auto x = boost::lexical_cast<std::string>(desc);
-		this->out(x);
+		this->out(to_wstring(x));
 		return 0;
 	}
 
 	if (auto itr = vm.find("config"); itr != vm.end())
 	{
-		loadSettings(itr->second.as<std::string>());
+		loadSettings(itr->second.as<std::wstring>());
 	}
 	else
 	{
 		if (!loadSettingsFromSelf())
 		{
-			loadSettings("update.cfg");
+			loadSettings(L"update.cfg");
 		}
 	}
 
 	if (!verifySetting())
 	{
-		this->err(-1, "Can not find config data!");
+		this->err(-1, L"Can not find config data!");
 	}
 
 	if (auto itr = vm.find("output"); itr != vm.end())
 	{
-		auto outfile = itr->second.as<std::string>();
+		auto outfile = itr->second.as<std::wstring>();
 		doOutput(outfile);
 		return 0;
 	}
 
 	Reviser reviser;
-	reviser.setRemoteBranch(global_settings.getBranch());
-	reviser.setRemoteSiteURL(global_settings.getRemoteUrl());
+	reviser.setRemoteBranch(to_string(global_settings.getBranch()));
+	reviser.setRemoteSiteURL(to_string(global_settings.getRemoteUrl()));
 	reviser.setRemoteSiteName("ccs");
-	reviser.setWorkDir(global_settings.getLocalDir());
+	reviser.setWorkDir(to_string(global_settings.getLocalDir()));
 	reviser.open();
 	reviser.addIgnore("update~/");
 
@@ -149,7 +149,7 @@ int Application::run()
 	
 	if (auto itr = vm.find("after"); itr != vm.end())
 	{
-		auto cmd = itr->second.as<std::string>();
+		auto cmd = itr->second.as<std::wstring>();
 		runCmd(cmd);
 	}
 
@@ -161,7 +161,7 @@ int Application::run()
 	return 0;
 }
 
-bool Application::waitProcess(int proc_id, std::string* file_name)
+bool Application::waitProcess(int proc_id, std::wstring* file_name)
 {
 	if (auto handle = make_handle_ptr(::OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, FALSE, proc_id)); handle)
 	{
@@ -169,7 +169,7 @@ bool Application::waitProcess(int proc_id, std::string* file_name)
 		{
 			DWORD size = MAX_PATH;
 			file_name->resize(size);
-			if (QueryFullProcessImageNameA(handle.get(), 0, file_name->data(), &size))
+			if (QueryFullProcessImageName(handle.get(), 0, file_name->data(), &size))
 			{
 				file_name->resize(size);
 			}
@@ -194,21 +194,21 @@ bool Application::waitProcess(int proc_id, std::string* file_name)
 			}
 			else
 			{
-				this->err(-1, "the application is not closed");
+				this->err(-1, L"the application is not closed");
 				return false;
 			}
 		}
 	}
 	else
 	{
-		this->out("no process id, skip");
+		this->out(L"no process id, skip");
 	}
 	return true;
 }
 
-void Application::runCmd(const std::string& cmd)
+void Application::runCmd(const std::wstring& cmd)
 {
-	::ShellExecuteA(NULL, "open", cmd.c_str(), NULL, NULL, SW_SHOW);
+	::ShellExecuteW(NULL, L"open", cmd.c_str(), NULL, NULL, SW_SHOW);
 }
 
 bool Application::doFetch(Reviser& reviser)
@@ -375,7 +375,7 @@ bool Application::doUpdate(Reviser& reviser, bool reset)
 	return true;
 }
 
-bool Application::loadSettings(const std::string& fn)
+bool Application::loadSettings(const std::wstring& fn)
 {
 	return global_settings.loadFromFile(fn);
 }
@@ -390,15 +390,15 @@ bool Application::verifySetting() const
 	return !global_settings.getRemoteUrl().empty();
 }
 
-void Application::doOutput(const std::string& outfile)
+void Application::doOutput(const std::wstring& outfile)
 {
 	if (!global_settings.createSelfExe(outfile))
 	{
-		err(-1, "Create updater failed!");
+		err(-1, L"Create updater failed!");
 	}
 	else
 	{
-		out("Created!");
+		out(L"Created!");
 	}
 }
 

@@ -528,10 +528,10 @@ bool VersionInformation::parse(const std::string& s)
         auto& whatnew = status.getSequence("New").value_or(empty_seq);
 
         Status.Local.clear();
-        std::transform(local.begin(), local.end(), std::back_inserter(Status.Local), [](auto& i) {return to_wstring(i.getString().value(), CP_ACP); });
+        std::transform(local.begin(), local.end(), std::back_inserter(Status.Local), [](auto& i) {return to_wstring(i.getString().value()); });
 
         Status.Remote.clear();
-        std::transform(remote.begin(), remote.end(), std::back_inserter(Status.Remote), [](auto& i) {return to_wstring(i.getString().value(), CP_ACP); });
+        std::transform(remote.begin(), remote.end(), std::back_inserter(Status.Remote), [](auto& i) {return to_wstring(i.getString().value()); });
 
         Status.New.clear();
         std::transform(

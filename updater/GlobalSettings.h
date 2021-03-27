@@ -2,29 +2,29 @@
 class GlobalSettings
 {
 private:
-	std::string exe_name;
-	std::string exe_path;
-	std::string exe_fullname;
-	std::string base_dir;
-	std::string remote_url;
-	std::string branch;
-	std::string local_dir;
+	std::wstring exe_name;
+	std::wstring exe_path;
+	std::wstring exe_fullname;
+	std::wstring base_dir;
+	std::wstring remote_url;
+	std::wstring branch;
+	std::wstring local_dir;
 
 	void loadFromTree(void*);
 	std::string saveToString() const;
 public:
 	GlobalSettings() = default;
 	void init();
-	bool loadFromFile(const std::string& file);
+	bool loadFromFile(const std::wstring& file);
 	bool loadFromSelf();
-	bool createSelfExe(const std::string& file);
+	bool createSelfExe(const std::wstring& file) const;
 
-	const std::string& getExeName() const;
-	const std::string& getExeFullName() const;
-	const std::string& getExePath() const;
-	const std::string& getRemoteUrl() const;
-	const std::string& getBranch() const;
-	const std::string& getLocalDir() const;
-	const std::string& getBaseDir() const;
+	const std::wstring& getExeName() const;
+	const std::wstring& getExeFullName() const;
+	const std::wstring& getExePath() const;
+	const std::wstring& getRemoteUrl() const;
+	const std::wstring& getBranch() const;
+	const std::wstring& getLocalDir() const;
+	const std::wstring& getBaseDir() const;
 };
 

@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "StringAlgo.h"
 #include <Windows.h>
 #include <Ole2.h>
 #include <CommCtrl.h>
@@ -17,7 +18,7 @@ int main()
 		ret = gApp.run();
 	}
 	catch (const std::exception& e) {
-		gApp.err(-1, e.what());
+		gApp.err(-1, to_wstring(e.what()));
 	}
 	::CoUninitialize();
 	return ret;

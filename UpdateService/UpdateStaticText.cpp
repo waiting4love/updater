@@ -673,6 +673,7 @@ LRESULT UpdateTextWin::OnParentSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOO
 	RECT rc = { 0 };
 	GetClientRect(&rc);
 	UpdateLayout({ rc.right, rc.bottom });
+	bHandled = FALSE;
 	return 0;
 }
 
@@ -687,6 +688,11 @@ bool UpdateTextWin::UpdateLayout(SIZE size)
 	auto [resultBound, changed] = core->CalcLayoutBound(parentBound, curBound, size);
 	if (changed)
 	{
+		// 如果向上超过屏幕，在一定范围内就适当下移
+		if (resultBound.top < 0 && resultBound.bottom > 0)
+		{
+			::OffsetRect(&resultBound, 0, -resultBound.top + 3); 
+		}
 		SetWindowPos(NULL, &resultBound, SWP_NOACTIVATE| SWP_NOZORDER);
 		return true;
 	}

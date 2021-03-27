@@ -39,8 +39,6 @@ public:
 		}
 	};
 
-	//static std::wstring to_wstring(std::string_view s, UINT code_page = CP_ACP);
-
 	static bool Show(WaitArgsWithMutex& args);
 
 	template<class Func>
