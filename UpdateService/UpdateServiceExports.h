@@ -7,15 +7,18 @@ DECLARE_HANDLE(VersionMessageWin);
 void __stdcall Update_Initialize();
 void __stdcall Update_Uninitialize();
 bool __stdcall Update_IsAvailable();
+void __stdcall Update_SetGuiFetch(bool guiFetch);
 using UpdateReceivedEvent = void(__stdcall*)(void* param);
-bool __stdcall Update_StartWatch(int checkIntervalMs, UpdateReceivedEvent watcher, void* param);
+bool __stdcall Update_StartWatch();
+bool __stdcall Update_SetWatcher(UpdateReceivedEvent watcher, void* param);
 bool __stdcall Update_StopWatch();
 bool __stdcall Update_SetCheckInterval(int intervalMs);
 bool __stdcall Update_Wait(int timeoutMs);
-bool __stdcall Update_Perform(bool restart);
+bool __stdcall Update_Perform(bool restart, const wchar_t* extra_args = nullptr);
 bool __stdcall Update_IsError();
 bool __stdcall Update_IsNewVersionReady();
 bool __stdcall Update_IsNothing();
+bool __stdcall Update_EnsureUpdateOnAppEntry(int timeoutMs = 30000, bool showProgressBar = true); // true if request restart
 VersionMessage __stdcall Update_GetVersionMessage();
 VersionMessage __stdcall Update_MoveVersionMessage();
 
@@ -58,7 +61,7 @@ const UINT ANCHOR_RIGHT = 0b0100;
 const UINT ANCHOR_BOTTOM = 0b1000;
 void __stdcall VersionMessageLabel_SetAnchor(VersionMessageLabel label, UINT anchor, int left, int top, int right, int bottom);
 
-VersionMessageWin __stdcall VersionMessageWin_Create(HWND parent);
+VersionMessageWin __stdcall VersionMessageWin_Create(HWND parent, bool manage_update_instance = false);
 void __stdcall VersionMessageWin_SetShowingHandler(VersionMessageWin win, ShowingLabelEvent func, void* param);
 void __stdcall VersionMessageWin_SetColor(VersionMessageWin win, COLORREF bkColor, COLORREF textColor);
 void __stdcall VersionMessageWin_SetFont(VersionMessageWin win, int nPointSize, LPCTSTR lpszFaceName);

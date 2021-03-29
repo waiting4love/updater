@@ -72,7 +72,7 @@ namespace Demo2
         internal static extern void VersionMessageLabel_SetAnchor(IntPtr label, Anchor anchor, int left, int top, int right, int bottom);
 
         [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
-        internal static extern IntPtr VersionMessageWin_Create(IntPtr parent);
+        internal static extern IntPtr VersionMessageWin_Create(IntPtr parent, bool manage_update_instance);
         [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]
         internal static extern void VersionMessageWin_SetShowingHandler(IntPtr win, IntPtr show_handler, IntPtr param);
         [DllImport("UpdateService.dll", CharSet = CharSet.Unicode, CallingConvention = CallingConvention.StdCall)]

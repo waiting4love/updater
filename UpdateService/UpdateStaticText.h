@@ -39,13 +39,12 @@ public:
 
 	VersionMessage GetLatestMessage() const;
 	void SetShowingHandler(std::function<std::wstring()> msgToText);
-	void SetColor(COLORREF color);
+	void SetTextColor(COLORREF color);
 	// 如果req for exit存在且被调用，在10秒内退出就启用更新。
 	void EnableShowBoxOnClick(bool enable, std::function<void(void)> request_exit);
 	void EnableAutoSize(bool enable);
 	void SetAlignment(Align H, Align V);
 	void SetAnchor(UINT, int left, int top, int right, int bottom);
-	//void UpdateOffsetFromEdge();
 	void EnableManageUpdateInstance(bool enable);
 	// 是否在退出时更新，如果通过对话框更新的，则在退出时检查时间
 	void EnablePerformUpdateOnExit(bool enable);
@@ -89,16 +88,16 @@ public:
 
 	VersionMessage GetLatestMessage() const;
 	void SetShowingHandler(std::function<std::wstring()> msgToText);
-	void SetColor(COLORREF bkColor, COLORREF textColor);
+	void SetTextColor(COLORREF bkColor, COLORREF textColor);
 	void SetFont(int nPointSize, LPCTSTR lpszFaceName);
 	void SetAnchor(UINT, int left, int top, int right, int bottom);
 	void EnableShowBoxOnClick(bool enable, std::function<void(void)> request_exit);
 	void EnablePerformUpdateOnExit(bool enable);
 	void SetTransparent(bool);
+	void EnableManageUpdateInstance(bool enable);
+
 private:
 	UpdateTextCore* core;
-	COLORREF bkColor = 0xffffff;
-	COLORREF textColor = 0x0;
 	bool UpdateLayout(SIZE size);
 	void RefreshText(LPCTSTR ws);
 };

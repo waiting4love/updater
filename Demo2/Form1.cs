@@ -15,8 +15,9 @@ namespace Demo2
         public Form1()
         {
             InitializeComponent();
-            var w = UpdateService.VersionMessageWin_Create(Handle);
-            UpdateService.VersionMessageWin_EnablePerformUpdateOnExit(w, true);
+            var w = UpdateService.VersionMessageWin_Create(Handle, true);
+            UpdateService.VersionMessageWin_EnableShowBoxOnClick(w, false, IntPtr.Zero, IntPtr.Zero);
+            //UpdateService.VersionMessageWin_EnablePerformUpdateOnExit(w, true);
             //var rect = ClientRectangle;
             //UpdateService.Rect rc = new UpdateService.Rect
             //{

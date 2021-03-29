@@ -88,6 +88,9 @@
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);WTL</IncludePath>
     <LibraryPath>$(OUTDIR);$(LibraryPath)</LibraryPath>
   </PropertyGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgEnabled>false</VcpkgEnabled>
+  </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
       <PrecompiledHeader>Use</PrecompiledHeader>

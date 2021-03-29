@@ -16,6 +16,11 @@ int WINAPI _tWinMain(HINSTANCE hInstance, HINSTANCE /*hPrevInstance*/, LPTSTR /*
 
 	AtlInitCommonControls(ICC_BAR_CLASSES);	// add flags to support other controls
 
+	if (Update_IsAvailable())
+	{
+		if (Update_EnsureUpdateOnAppEntry(30000, true)) return 0;
+	}
+
 	hRes = _Module.Init(NULL, hInstance);
 	ATLASSERT(SUCCEEDED(hRes));
 

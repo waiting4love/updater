@@ -42,7 +42,15 @@ void Application::err(int exitCode, const std::wstring& s) const
 }
 int Application::run()
 {
-	auto args = progopt::split_winmain(GetCommandLineW());
+	std::wstring cmdline = GetCommandLineW();
+	std::wstring after_cmdline;
+	if (auto pos = cmdline.find(L"--after "); pos != std::wstring::npos)
+	{
+		after_cmdline = cmdline.substr(pos + 8);
+		cmdline.erase(pos);
+	}
+
+	auto args = progopt::split_winmain(cmdline);
 
 	progopt::options_description desc("Update tool, Allowed options");
 	desc.add_options()
@@ -89,7 +97,7 @@ int Application::run()
 	if (auto itr = vm.find("before"); itr != vm.end())
 	{
 		auto cmd = itr->second.as<std::wstring>();
-		runCmd(cmd);
+		runCmd(std::move(cmd));
 	}
 
 	if (vm.empty() || vm.find("help") != vm.end()) {
@@ -147,15 +155,19 @@ int Application::run()
 		if (!doUpdate(reviser, true)) return -1;
 	}
 	
-	if (auto itr = vm.find("after"); itr != vm.end())
+	if (after_cmdline.length() > 0)
+	{
+		runCmd(std::move(after_cmdline));
+	}
+	else if (auto itr = vm.find("after"); itr != vm.end())
 	{
 		auto cmd = itr->second.as<std::wstring>();
-		runCmd(cmd);
+		runCmd(std::move(cmd));
 	}
 
 	if (!restart_request.empty())
 	{
-		runCmd(restart_request);
+		runCmd(std::move(restart_request));
 	}
 
 	return 0;
@@ -206,9 +218,21 @@ bool Application::waitProcess(int proc_id, std::wstring* file_name)
 	return true;
 }
 
-void Application::runCmd(const std::wstring& cmd)
+void Application::runCmd(std::wstring cmd)
 {
-	::ShellExecuteW(NULL, L"open", cmd.c_str(), NULL, NULL, SW_SHOW);
+	STARTUPINFO si;
+	PROCESS_INFORMATION pi;
+
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+
+	CreateProcessW(NULL, cmd.data(), NULL, NULL,
+		FALSE, 0, NULL, NULL, &si, &pi
+		);
+	// Close process and thread handles. 
+	CloseHandle(pi.hProcess);
+	CloseHandle(pi.hThread);
 }
 
 bool Application::doFetch(Reviser& reviser)

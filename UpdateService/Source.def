@@ -3,8 +3,10 @@ EXPORTS
 	Update_Initialize
 	Update_Uninitialize
 	Update_IsAvailable
+	Update_SetGuiFetch
 	Update_StartWatch
 	Update_StopWatch
+	Update_SetWatcher
 	Update_SetCheckInterval
 	Update_Wait
 	Update_Perform
@@ -13,6 +15,7 @@ EXPORTS
 	Update_IsNothing
 	Update_GetVersionMessage
 	Update_MoveVersionMessage
+	Update_EnsureUpdateOnAppEntry
 	VersionMessage_Destory
 	VersionMessage_IsError
 	VersionMessage_IsNewVersionReady

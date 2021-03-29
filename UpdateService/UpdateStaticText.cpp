@@ -25,8 +25,6 @@ public:
 	}
 };
 
-GdiPlusIniter g_gdi;
-
 class UpdateTextCore
 {
 public:
@@ -110,50 +108,25 @@ public:
 		return std::make_pair(resultBound, memcmp(&resultBound, &curBound, sizeof(RECT)) != 0);
 	}
 
-	// size, rcFlag, rcText
-	std::tuple<SIZE, RECT, RECT> CalcTextSize(HDC hdc, wchar_t c, LPCWSTR text)
-	{
-		SIZE size = { 0 };
-		RECT rcFlag = { 0 };
-		RECT rcText = { 0 };
-
-		CDCHandle dc{ hdc };
-		if (text[0] != 0)
-		{
-			if (m_ftText.IsNull()) SetFont(110, _T("Tahoma"));
-
-			SIZE sizeFlag = { 0 };
-			if (c != 0)
-			{
-				dc.SelectFont(m_ftIcon);
-				dc.GetTextExtent(&c, 1, &sizeFlag);
-				rcFlag.right = rcFlag.left + sizeFlag.cx;
-				rcFlag.bottom = rcFlag.top + sizeFlag.cy;
-			}
-
-			dc.SelectFont(m_ftText);
-			rcText.left = rcFlag.right + sizeFlag.cx / 4;
-			rcText.bottom = rcText.top + sizeFlag.cy;
-			dc.DrawText(text, -1, &rcText, DT_SINGLELINE | DT_BOTTOM | DT_CALCRECT);
-
-			size.cx = rcText.right;
-			size.cy = std::max<>(sizeFlag.cy, rcText.bottom);
-		}
-
-		return std::make_tuple(size, rcFlag, rcText);
-	}
-
 	VersionMessage GetLatestMessage() const
 	{
 		return m_latestMsg.get();
 	}
-	void SetColor(COLORREF color)
+	void SetTextColor(COLORREF color)
 	{
 		m_clText = color;
 	}
-	COLORREF GetColor() const {
+	COLORREF GetTextColor() const {
 		return m_clText;
 	}
+	void SetBackColor(COLORREF color)
+	{
+		m_clBack = color;
+	}
+	COLORREF GetBackColor() const {
+		return m_clBack;
+	}
+
 	void EnableShowBoxOnClick(bool enable, std::function<void(void)> request_exit)
 	{
 		m_bClickToShow = enable;
@@ -200,25 +173,27 @@ public:
 
 	void SetFont(int nPointSize, LPCTSTR lpszFaceName)
 	{
-		m_ftText.CreatePointFont(nPointSize, lpszFaceName);
-		m_ftIcon.CreatePointFont(nPointSize, _T("Segoe UI Symbol"));
+		m_ftText = std::make_unique<Gdiplus::Font>( lpszFaceName, nPointSize / 10.0F );
+		m_ftIcon = std::make_unique<Gdiplus::Font>(_T("Segoe UI Symbol"), nPointSize / 10.0F + 1.0F);
 	}
-	HFONT GetFont()
-	{
-		return m_ftText;
-	}
+
 	bool IsAutoSize() const
 	{
 		return m_bAutoSize && !HasAnchor(ANCHOR_LEFT | ANCHOR_TOP | ANCHOR_TOP | ANCHOR_BOTTOM);
 	}
 	void Initialize()
 	{
+		gdiplus.Init();
+		SetFont(80, L"Segoe UI");
 		m_latestInst.Acquire();
 	}
 
 	void Uninitialize()
 	{
 		m_latestInst.Release();
+		m_ftIcon.reset();
+		m_ftText.reset();
+		gdiplus.Uninit();
 
 		if (m_bManageUpdateInstance)
 		{
@@ -244,12 +219,63 @@ public:
 		{
 			Update_Uninitialize();
 		}
+
 	}
 
-	void Paint(CDCHandle dc, LPCTSTR buf, const RECT& rcClient)
+	static Gdiplus::RectF CreateRectF(const RECT& rc)
+	{
+		return {
+			FLOAT(rc.left), FLOAT(rc.top), FLOAT(rc.right - rc.left), FLOAT(rc.bottom - rc.top)
+		};
+	}
+
+	static RECT GetRect(const Gdiplus::RectF& rc)
+	{
+		return {
+			(LONG)std::floorf(rc.GetLeft()),
+			(LONG)std::floorf(rc.GetTop()),
+			(LONG)std::ceilf(rc.GetRight()),
+			(LONG)std::ceilf(rc.GetBottom())
+		};
+	}
+
+	// size, rcFlag, rcText
+	std::tuple<SIZE, RECT, RECT> CalcTextSize(HDC hdc, wchar_t c, LPCWSTR text)
+	{
+		SIZE size = { 0 };
+		RECT rcFlag = { 0 };
+		RECT rcText = { 0 };
+
+		if (text[0] != 0)
+		{
+			Gdiplus::Graphics gr{ hdc };
+			SIZE sizeFlag = { 0 };
+			if (c != 0)
+			{
+				Gdiplus::RectF re;
+				gr.MeasureString(&c, 1, m_ftIcon.get(), Gdiplus::PointF{}, &re);
+				rcFlag = GetRect(re);
+				sizeFlag = {
+					rcFlag.right - rcFlag.left,
+					rcFlag.bottom - rcFlag.top };
+			}
+
+			Gdiplus::RectF re;
+			gr.MeasureString(text, lstrlen(text), m_ftText.get(), Gdiplus::PointF{}, &re);
+			rcText = GetRect(re);
+			::OffsetRect(&rcText, rcFlag.right, rcFlag.top + (rcFlag.bottom - rcFlag.top - (rcText.bottom - rcText.top)));
+
+			size.cx = rcText.right;
+			size.cy = std::max<>(sizeFlag.cy, rcText.bottom);
+		}
+
+		return std::make_tuple(size, rcFlag, rcText);
+	}
+
+	void PaintText(HDC dc, LPCTSTR text, const RECT& rcClient)
 	{
 		wchar_t c = GetIconChar(m_latestMsg.get());
-		auto [size, rcFlag, rcText] = CalcTextSize(dc, c, buf);
+		auto [size, rcFlag, rcText] = CalcTextSize(dc, c, text);
 
 		// 画图，按Align画在指定的角落
 		int offsetX = 0;
@@ -274,14 +300,56 @@ public:
 
 		::OffsetRect(&rcFlag, offsetX, offsetY);
 		::OffsetRect(&rcText, offsetX, offsetY);
-		auto savedDc = dc.SaveDC();
-		dc.SetTextColor(m_clText);
-		dc.SetBkMode(TRANSPARENT);
-		dc.SelectFont(m_ftIcon);
-		dc.DrawText(&c, 1, &rcFlag, DT_SINGLELINE | DT_VCENTER);
-		dc.SelectFont(m_ftText);
-		dc.DrawText(buf, -1, &rcText, DT_SINGLELINE | DT_BOTTOM);
-		dc.RestoreDC(savedDc);
+		Gdiplus::Graphics gr(dc);
+		//gr.SetTextRenderingHint(Gdiplus::TextRenderingHintAntiAliasGridFit);
+
+		Gdiplus::Color cl;
+		cl.SetFromCOLORREF(m_clText);
+
+		Gdiplus::SolidBrush brs{ cl };
+		Gdiplus::StringFormat fmt{ Gdiplus::StringFormatFlagsNoWrap| Gdiplus::StringFormatFlagsNoClip };
+		fmt.SetAlignment(Gdiplus::StringAlignment::StringAlignmentCenter);
+		fmt.SetLineAlignment(Gdiplus::StringAlignment::StringAlignmentCenter);
+
+		gr.DrawString(&c, 1, m_ftIcon.get(), CreateRectF(rcFlag), &fmt, &brs);
+		gr.DrawString(text, lstrlen(text), m_ftText.get(), CreateRectF(rcText), &fmt, &brs);
+	}
+
+	void PaintBack(HDC dc, LPCTSTR buf, const RECT& rcClient)
+	{
+		Gdiplus::Graphics gr(dc);
+		Gdiplus::RectF rc{ 0, 0, (float)rcClient.right, (float)rcClient.bottom };
+
+		Gdiplus::Color cl1 = Gdiplus::Color::MakeARGB(192, GetRValue(m_clBack), GetGValue(m_clBack), GetBValue(m_clBack));
+		Gdiplus::Color cl2(0, cl1.GetR(), cl1.GetG(), cl1.GetB());
+		Gdiplus::LinearGradientBrush linearGradientBrush{ rc, cl1, cl2, Gdiplus::LinearGradientMode::LinearGradientModeHorizontal };
+		Gdiplus::Color Colors[] = { cl2, cl1, cl1, cl2 };
+		Gdiplus::REAL pos[] = { 0.0F, 0.1F, 0.9F, 1.0F };
+		linearGradientBrush.SetInterpolationColors(Colors, pos, 4);
+		gr.FillRectangle(&linearGradientBrush, rc);
+	}
+
+	void PaintBack2(HDC dc, LPCTSTR buf, const RECT& rcClient)
+	{
+		Gdiplus::Graphics gr(dc);
+		Gdiplus::RectF rc{ 0, 0, (float)rcClient.right, (float)rcClient.bottom };
+		Gdiplus::GraphicsPath path;
+		Gdiplus::RectF rc2 = rc;
+		rc2.Height *= 1.5F;
+		path.AddEllipse(rc2);
+
+		Gdiplus::Color cl1 = Gdiplus::Color::MakeARGB(218, GetRValue(m_clBack), GetGValue(m_clBack), GetBValue(m_clBack));
+		Gdiplus::Color cl2(0, cl1.GetR(), cl1.GetG(), cl1.GetB());
+		Gdiplus::PathGradientBrush pthGrBrush(&path);
+
+		Gdiplus::REAL fac[] = { 0.0F, 1.0F, 1.0F };
+		Gdiplus::REAL pos[] = { 0.0F, 0.5F, 1.0F };
+		pthGrBrush.SetBlend(fac, pos, 3);
+		pthGrBrush.SetCenterColor(cl1);
+		Gdiplus::Color colors[] = { cl2 };
+		int count = 1;
+		pthGrBrush.SetSurroundColors(colors, &count);
+		gr.FillRectangle(&pthGrBrush, rc);
 	}
 
 	void UpdateMsg()
@@ -357,8 +425,8 @@ public:
 	}
 private:
 	LatestInstance m_latestInst;
-	WTL::CFont m_ftIcon;
-	WTL::CFont m_ftText;
+	std::unique_ptr<Gdiplus::Font> m_ftIcon;
+	std::unique_ptr<Gdiplus::Font> m_ftText;
 	std::unique_ptr<std::remove_pointer_t<VersionMessage>, decltype(&VersionMessage_Destory)> m_latestMsg{ nullptr, &VersionMessage_Destory };
 	bool m_bAutoSize{ true };
 	bool m_bClickToShow{ true };
@@ -372,7 +440,9 @@ private:
 	Align m_alignVert{ Align::Near };
 	UINT m_anchor{ ANCHOR_NONE };
 	COLORREF m_clText{ RGB(0, 192, 0) };
+	COLORREF m_clBack{ RGB(255, 255, 255) };
 	RECT m_offsetFromEdge{ 0 };
+	GdiPlusIniter gdiplus;
 };
 
 UpdateStaticText::UpdateStaticText()
@@ -429,7 +499,7 @@ SIZE UpdateStaticText::CalcTextSize(HDC hdc, wchar_t c, LPCWSTR text, RECT* prcF
 LRESULT UpdateStaticText::OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
 	core->Initialize();
-	return true;
+	return true; 
 }
 
 LRESULT UpdateStaticText::OnPaint(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
@@ -441,7 +511,7 @@ LRESULT UpdateStaticText::OnPaint(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL&
 	GetClientRect(&rcClient);
 
 	CPaintDC dc{ m_hWnd };
-	core->Paint(dc.m_hDC, buf, rcClient);
+	core->PaintText(dc.m_hDC, buf, rcClient);
 	return 0;
 }
 
@@ -516,9 +586,9 @@ VersionMessage UpdateStaticText::GetLatestMessage() const
 {
 	return core->GetLatestMessage();
 }
-void UpdateStaticText::SetColor(COLORREF color)
+void UpdateStaticText::SetTextColor(COLORREF color)
 {
-	core->SetColor(color);
+	core->SetTextColor(color);
 	Invalidate();
 }
 void UpdateStaticText::EnableShowBoxOnClick(bool enable, std::function<void(void)> request_exit)
@@ -598,31 +668,15 @@ UpdateTextWin::~UpdateTextWin()
 }
 LRESULT UpdateTextWin::OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
-	g_gdi.Init();
-
 	HWND ParentWnd = GetParent();
 	core->EnableManageUpdateInstance(true);
 	core->Initialize();
-	core->SetFont(80, L"Segoe UI");
 	core->SetAnchor(ANCHOR_TOP | ANCHOR_RIGHT);
+	core->SetAlignment(Align::Center, Align::Center);
+	core->SetBackColor(0xffffff);
+	core->SetTextColor(0);
 	core->EnableAutoSize(true);
 	core->EnableShowBoxOnClick(true, [this, ParentWnd]() { ::SendMessage(::GetAncestor(ParentWnd, GA_ROOTOWNER), WM_CLOSE, 0, 0); });
-
-	//TITLEBARINFOEX infoEx = {0};
-	//infoEx.cbSize = sizeof(infoEx);
-	//::SendMessage(ParentWnd, WM_GETTITLEBARINFOEX, 0, LPARAM(&infoEx));
-	//int mostLeft = infoEx.rcTitleBar.right;
-	//for (int i : {2,3,4,5}) // min, max, help, close
-	//{
-	//	if (!::IsRectEmpty(&infoEx.rgrect[i]))
-	//	{
-	//		mostLeft = std::min<int>(infoEx.rgrect[i].left, mostLeft);
-	//	}
-	//}
-
-	//int rightEdge = mostLeft - infoEx.rcTitleBar.right - 5;
-
-	//int rightEdge = -145;
 
 	int rightEdge = int(CWindowDC(ParentWnd).GetDeviceCaps(LOGPIXELSX) * 1.5);
 
@@ -643,7 +697,6 @@ LRESULT UpdateTextWin::OnDestroy(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& 
 	{
 		Parent.UnsubclassWindow();
 	}
-	g_gdi.Uninit();
 	return 0;
 }
 
@@ -725,21 +778,17 @@ LRESULT UpdateTextWin::OnVersionInfoReceived(UINT uMsg, WPARAM wParam, LPARAM lP
 class CNoCopyMemoryDC : public CDC
 {
 public:
-	// Data members
 	HDC m_hDCOriginal;
-	RECT m_rcPaint;
 	CBitmap m_bmp;
-	HBITMAP m_hBmpOld;
+	HBITMAP m_hBmpOld{nullptr};
 
-	CNoCopyMemoryDC(HDC hDC, const RECT& rcPaint) : m_hDCOriginal(hDC), m_hBmpOld(NULL)
+	CNoCopyMemoryDC(HDC hDC, const RECT& rcPaint) : m_hDCOriginal(hDC)
 	{
-		m_rcPaint = rcPaint;
 		CreateCompatibleDC(m_hDCOriginal);
 		ATLASSERT(m_hDC != NULL);
-		m_bmp.CreateCompatibleBitmap(m_hDCOriginal, m_rcPaint.right - m_rcPaint.left, m_rcPaint.bottom - m_rcPaint.top);
+		m_bmp.CreateCompatibleBitmap(m_hDCOriginal, rcPaint.right - rcPaint.left, rcPaint.bottom - rcPaint.top);
 		ATLASSERT(m_bmp.m_hBitmap != NULL);
 		m_hBmpOld = SelectBitmap(m_bmp);
-		SetViewportOrg(-m_rcPaint.left, -m_rcPaint.top);
 	}
 
 	~CNoCopyMemoryDC()
@@ -783,8 +832,6 @@ void UpdateTextWin::RefreshText(LPCTSTR ws)
 		0,0,sizeWindow.cx,sizeWindow.cy
 	};
 
-	CNoCopyMemoryDC bmpDC(dc, rcClient);
-
 	BLENDFUNCTION bf = { 0 };
 	bf.BlendOp = 0;
 	bf.BlendFlags = 0;
@@ -792,44 +839,11 @@ void UpdateTextWin::RefreshText(LPCTSTR ws)
 	bf.SourceConstantAlpha = 255;
 
 	TCHAR buf[256] = { 0 };
-	int len = GetWindowText(buf+1, 255);
-	buf[0] = core->GetIconChar();
-	len++;
+	GetWindowText(buf, 256);
 
-	Gdiplus::Graphics gr(bmpDC);
-	Gdiplus::RectF rc{ 0, 0, (float)sizeWindow.cx, (float)sizeWindow.cy };
-
-	//Gdiplus::GraphicsPath path;
-	//Gdiplus::RectF rc2 = rc;
-	//rc2.Height *= 1.5F;
-	//path.AddEllipse(rc2);
-
-	//Gdiplus::Color cl1(255, 255, 255, 255);
-	//Gdiplus::Color cl2(0, 255, 255, 255);
-	//Gdiplus::PathGradientBrush pthGrBrush(&path);
-	//pthGrBrush.SetCenterColor(cl1);	
-	//Gdiplus::Color colors[] = { cl2 };
-	//int count = 1;
-	//pthGrBrush.SetSurroundColors(colors, &count);
-	//gr.FillRectangle(&pthGrBrush, rc);
-
-	Gdiplus::Color cl1 = Gdiplus::Color::MakeARGB(192, GetRValue(bkColor), GetGValue(bkColor), GetBValue(bkColor));	
-	Gdiplus::Color cl2(0, cl1.GetR(), cl1.GetG(), cl1.GetB());
-	Gdiplus::LinearGradientBrush linearGradientBrush{ rc, cl1, cl2, Gdiplus::LinearGradientMode::LinearGradientModeHorizontal };
-	Gdiplus::Color Colors[] = { cl2, cl1, cl1, cl2 };
-	Gdiplus::REAL pos[] = { 0.0F, 0.1F, 0.9F, 1.0F };
-	linearGradientBrush.SetInterpolationColors(Colors, pos, 4);
-	gr.FillRectangle(&linearGradientBrush, rc);
-
-	Gdiplus::Font ft{ bmpDC, core->GetFont() };
-	Gdiplus::Color cl;
-	cl.SetFromCOLORREF(textColor);
-
-	Gdiplus::SolidBrush brs{ cl };
-	Gdiplus::StringFormat fmt;
-	fmt.SetAlignment(Gdiplus::StringAlignment::StringAlignmentCenter);
-	fmt.SetLineAlignment(Gdiplus::StringAlignment::StringAlignmentCenter);
-	gr.DrawString(buf, len, &ft, rc, &fmt, &brs);
+	CNoCopyMemoryDC bmpDC(dc, rcClient);
+	core->PaintBack(bmpDC, buf, rcClient);
+	core->PaintText(bmpDC, buf, rcClient);
 	
 	::UpdateLayeredWindow(m_hWnd, dc, &ptWinPos, &sizeWindow, bmpDC, &ptSrc, 0,
 		&bf, ULW_ALPHA);
@@ -840,10 +854,10 @@ void UpdateTextWin::SetShowingHandler(std::function<std::wstring()> msgToText)
 	core->SetShowingHandler(std::move(msgToText));
 	PostMessage(MSG_VERSIONINFO_RECEVICED);
 }
-void UpdateTextWin::SetColor(COLORREF bkColor, COLORREF textColor)
+void UpdateTextWin::SetTextColor(COLORREF bkColor, COLORREF textColor)
 {
-	this->bkColor = bkColor;
-	this->textColor = textColor;
+	core->SetBackColor(bkColor);
+	core->SetTextColor(textColor);
 	SetWindowText(L"");
 	PostMessage(MSG_VERSIONINFO_RECEVICED);
 }
@@ -862,6 +876,7 @@ void UpdateTextWin::SetAnchor(UINT anchor, int left, int top, int right, int bot
 void UpdateTextWin::EnableShowBoxOnClick(bool enable, std::function<void(void)> request_exit)
 {
 	core->EnableShowBoxOnClick(enable, std::move(request_exit));
+	SetTransparent(!enable);
 }
 void UpdateTextWin::SetTransparent(bool trans)
 {
@@ -877,4 +892,9 @@ void UpdateTextWin::EnablePerformUpdateOnExit(bool enable)
 VersionMessage UpdateTextWin::GetLatestMessage() const
 {
 	return core->GetLatestMessage();
+}
+
+void UpdateTextWin::EnableManageUpdateInstance(bool enable)
+{
+	core->EnableManageUpdateInstance(enable);
 }

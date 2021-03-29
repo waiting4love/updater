@@ -40,7 +40,7 @@ public:
 	const String& getUpdateExe() const;
 	void setCheckInterval(int ms);
 	int getCheckInterval() const;
-	void setRestartAppFlag(bool);
+	void setRestartAppFlag(bool, const wchar_t* extra_args);
 	void start();
 	void stop();
 	void setVersionReceivedHandler(VersionReceivedHandler);
@@ -53,6 +53,7 @@ public:
 	bool isNewVersionReady() const;
 	bool isError() const;
 	bool IsNothing() const;
+	void setGuiFetch(bool enableGui);
 private:
 	class Impl;
 	Impl* _Impl;

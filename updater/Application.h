@@ -19,7 +19,7 @@ public:
 	void err(int exitCode, const std::wstring& s) const;
 	int run();
 
-	void runCmd(const std::wstring&);
+	void runCmd(std::wstring);
 	bool doFetch(Reviser&);
 	bool doFetchGui(Reviser&) noexcept;
 	bool doFetchCl(Reviser&);

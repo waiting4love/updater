@@ -78,8 +78,9 @@ public:
 class UpdateService::Impl
 {
 private:
-    TCHAR ExeFile[MAX_PATH];
-    DWORD IntervalMs;
+    WCHAR ExeFile[MAX_PATH];
+    WCHAR ExtraArgs[MAX_PATH];
+    DWORD IntervalMs = 60*1000;
     bool FlagForRestart = false;
     VersionReceivedHandler VersionReceived;
     bool Disabled = false;
@@ -88,12 +89,28 @@ private:
     VersionInformation VersionInfo;
     mutable std::mutex VersionInfoMutex;       
     std::condition_variable VersionInfoReady;
+    bool GuiFetch = false;
 public:
+    Impl()
+    {
+        ZeroMemory(ExeFile, sizeof(ExeFile));
+        ZeroMemory(ExtraArgs, sizeof(ExtraArgs));
+    }
+    ~Impl()
+    {
+        stop();
+    }
     void setUpdateExe(LPCTSTR file) { lstrcpyn(ExeFile, file, MAX_PATH); }
     LPCTSTR getUpdateExe() const { return ExeFile; }
     void setCheckInterval(int ms) { IntervalMs = ms; }
     int getCheckInterval() const { return IntervalMs; }
-    void setRestartAppFlag(bool value) { FlagForRestart = value; }
+    void setRestartAppFlag(bool value, const wchar_t* extra_args) {
+        FlagForRestart = value;
+        if (extra_args != nullptr)
+            lstrcpynW(ExtraArgs, extra_args, MAX_PATH);
+        else
+            ZeroMemory(ExtraArgs, sizeof(ExtraArgs));
+    }
     void start()
     {
         if (!isAvailable() || CheckThread.joinable()) return;
@@ -117,6 +134,7 @@ public:
     }
     void disable() { Disabled = true; }
     void enable() { Disabled = false; }
+    void setGuiFetch(bool enable) { GuiFetch = enable; }
     bool doUpdate() const
     {
         TCHAR ThisFile[MAX_PATH];
@@ -144,14 +162,22 @@ public:
         if (fs::exists(NewExe))
         {
             DWORD pid = ::GetCurrentProcessId();
-            TCHAR Args[MAX_PATH];
+            TCHAR Args[MAX_PATH*2];
 
             wsprintf(Args, _T("--no-console --gui -rw %d"), pid);
             if (FlagForRestart)
             {
-                _tcscat_s(Args, _T(" --after \""));
-                _tcscat_s(Args, ThisFile);
-                _tcscat_s(Args, _T("\""));
+                _tcscat_s(Args, _T(" --after "));
+                if (ExtraArgs[0] != 0)
+                {
+                    _tcscat_s(Args, ExtraArgs);
+                }
+                else
+                {
+                    _tcscat_s(Args, _T("\""));
+                    _tcscat_s(Args, ThisFile);
+                    _tcscat_s(Args, _T("\""));
+                }
             }
             ::ShellExecute(NULL, _T("open"), NewExe, Args, NULL, SW_SHOW);
             return true;
@@ -307,7 +333,7 @@ private:
     }
 
 
-    static std::tuple<int, std::string> executeCommand(LPCTSTR Command, LPCTSTR Args, const volatile std::atomic_bool& Terminated)
+    static std::tuple<int, std::string> executeCommand(LPCTSTR Command, LPCTSTR Args, const volatile std::atomic_bool& Terminated, bool showWindow = false)
     {
         CHandle hRead;
         CHandle hWrite;
@@ -328,7 +354,7 @@ private:
         si.hStdInput = INVALID_HANDLE_VALUE;
         si.hStdError = hWrite;
         si.hStdOutput = hWrite;
-        si.wShowWindow = SW_HIDE;
+        si.wShowWindow = showWindow?SW_SHOW:SW_HIDE;
         si.dwFlags = STARTF_USESTDHANDLES | STARTF_USESHOWWINDOW;
 
         BOOL res;
@@ -418,8 +444,12 @@ private:
         if (!isAvailable()) return;
         LatestInstance li;
         li.Acquire();
-        li.Enter(Terminated);        
-        auto [code, output] = executeCommand(getUpdateExe(), _T("--fetch"), Terminated);
+        li.Enter(Terminated);
+        auto [code, output] = executeCommand(
+            getUpdateExe(),
+            (GuiFetch? _T("-f --gui --no-console") :_T("-f")),
+            Terminated,
+            (GuiFetch ? true : false));
         
         if (code != 0)
         {
@@ -490,7 +520,6 @@ private:
     }
 
 };
-
 
 bool VersionInformation::isNewVersionReady() const
 {
@@ -571,17 +600,15 @@ UpdateService::~UpdateService()
     delete _Impl;
 }
 
-//void UpdateService::setUpdateExe(String exe_file)
-//{
-//    auto u16_conv = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>{}.from_bytes(exe_file);
-//    _Impl->setUpdateExe(u16_conv.c_str());
-//}
-//
-//const String& UpdateService::getUpdateExe() const
-//{   
-//    auto u8_conv = std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>>{}.to_bytes(_Impl->getUpdateExe());
-//    return u8_conv.c_str();
-//}
+void UpdateService::setUpdateExe(String exe_file)
+{
+    _Impl->setUpdateExe(exe_file.c_str());
+}
+
+const String& UpdateService::getUpdateExe() const
+{   
+    return _Impl->getUpdateExe();
+}
 
 void UpdateService::setCheckInterval(int ms)
 {
@@ -593,9 +620,9 @@ int UpdateService::getCheckInterval() const
     return _Impl->getCheckInterval();
 }
 
-void UpdateService::setRestartAppFlag(bool r)
+void UpdateService::setRestartAppFlag(bool r, const wchar_t* extra_args)
 {
-    _Impl->setRestartAppFlag(r);
+    _Impl->setRestartAppFlag(r, extra_args);
 }
 
 void UpdateService::start()
@@ -656,4 +683,9 @@ bool UpdateService::isError() const
 bool UpdateService::IsNothing() const
 {
     return _Impl->IsNothing();
+}
+
+void UpdateService::setGuiFetch(bool enableGui)
+{
+    _Impl->setGuiFetch(enableGui);
 }

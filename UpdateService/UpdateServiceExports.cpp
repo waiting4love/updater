@@ -80,13 +80,14 @@ public:
 			cur_watcher(cur_watcher_param);
 		}
 	}
-	bool StartWatch(int checkIntervalMs, UpdateReceivedEvent watcher, void* param) noexcept
+	void SetGuiFetch(bool gui)
+	{
+		service.setGuiFetch(gui);
+	}
+	bool StartWatch() noexcept
 	{
 		try {
 			std::scoped_lock sl{ mutexForWatcher };
-			this->watcher = watcher;
-			this->watcher_param = param;
-			service.setCheckInterval(checkIntervalMs);
 			service.start();
 			return true;
 		}
@@ -94,6 +95,13 @@ public:
 			return false;
 		}
 	}
+	void SetWatcher(UpdateReceivedEvent watcher, void* param)
+	{
+		std::scoped_lock sl{ mutexForWatcher };
+		this->watcher = watcher;
+		this->watcher_param = param;
+	}
+
 	bool StopWatch() noexcept
 	{
 		try {
@@ -114,10 +122,10 @@ public:
 			return false;
 		}
 	}
-	bool Perform(bool restart) noexcept
+	bool Perform(bool restart, const wchar_t* extra_args) noexcept
 	{
 		try {
-			service.setRestartAppFlag(restart);
+			service.setRestartAppFlag(restart, extra_args);
 			return service.doUpdate();
 		}
 		catch (...) {
@@ -204,14 +212,17 @@ void __stdcall Update_Uninitialize()
 {
 	ExportHelper::Uninitialize();
 }
-
+void __stdcall Update_SetGuiFetch(bool guiFetch)
+{
+	ExportHelper::GetInstance().SetGuiFetch(guiFetch);
+}
 bool __stdcall Update_IsAvailable()
 {
 	return ExportHelper::GetInstance().IsAvailable();
 }
-bool __stdcall Update_StartWatch(int checkIntervalMs, UpdateReceivedEvent watcher, void* param)
+bool __stdcall Update_StartWatch()
 {
-	return ExportHelper::GetInstance().StartWatch(checkIntervalMs, watcher, param);
+	return ExportHelper::GetInstance().StartWatch();
 }
 bool __stdcall Update_StopWatch()
 {
@@ -221,9 +232,14 @@ bool __stdcall Update_SetCheckInterval(int intervalMs)
 {
 	return ExportHelper::GetInstance().SetCheckInterval(intervalMs);
 }
-bool __stdcall Update_Perform(bool restart)
+bool __stdcall Update_SetWatcher(UpdateReceivedEvent watcher, void* param)
 {
-	return ExportHelper::GetInstance().Perform(restart);
+	ExportHelper::GetInstance().SetWatcher(watcher, param);
+	return true;
+}
+bool __stdcall Update_Perform(bool restart, const wchar_t* extra_args)
+{
+	return ExportHelper::GetInstance().Perform(restart, extra_args);
 }
 bool __stdcall Update_IsError()
 {
@@ -249,7 +265,20 @@ bool __stdcall Update_Wait(int timeoutMs)
 {
 	return ExportHelper::GetInstance().Wait(timeoutMs);
 }
-
+bool __stdcall Update_EnsureUpdateOnAppEntry(int timeoutMs, bool showProgressBar) // true if request restart
+{
+	auto & inst = ExportHelper::GetInstance();
+	inst.SetGuiFetch(showProgressBar);
+	inst.StartWatch();
+	if (inst.Wait(timeoutMs) && inst.IsNewVersionReady())
+	{
+		inst.StopWatch();
+		inst.Perform(true, ::GetCommandLineW());
+		return true;
+	}
+	Update_Uninitialize(); // it will be created again if necessary
+	return false;	
+}
 bool __stdcall VersionMessage_Destory(VersionMessage msg)
 {
 	auto vi = (VersionInformation*)msg;
@@ -336,7 +365,7 @@ VersionMessageLabel __stdcall VersionMessageLabel_Create(HWND parent, LPRECT rec
 	if (manage_update_instance)
 	{
 		Update_Initialize();
-		Update_StartWatch(60'000, nullptr, nullptr);
+		Update_StartWatch();
 	}
 	return (VersionMessageLabel)lbl;
 }
@@ -575,7 +604,7 @@ void __stdcall VersionMessageLabel_SetAlignment(VersionMessageLabel label, Align
 void __stdcall VersionMessageLabel_SetColor(VersionMessageLabel label, COLORREF color)
 {
 	auto sta = (UpdateStaticText*)label;
-	sta->SetColor(color);
+	sta->SetTextColor(color);
 }
 
 void __stdcall VersionMessageLabel_SetFont(VersionMessageLabel label, int nPointSize, LPCWSTR lpszFaceName)
@@ -590,11 +619,15 @@ void __stdcall VersionMessageLabel_SetAnchor(VersionMessageLabel label, UINT anc
 	sta->SetAnchor(anchor, left, top, right, bottom);
 }
 
-VersionMessageWin __stdcall VersionMessageWin_Create(HWND parent)
+VersionMessageWin __stdcall VersionMessageWin_Create(HWND parent, bool manage_update_instance)
 {
 	auto res = ExportHelper::GetInstance().CreateTextWin(parent);
-	Update_Initialize();
-	Update_StartWatch(60'000, nullptr, nullptr);
+	res->EnableManageUpdateInstance(manage_update_instance);
+	if (manage_update_instance)
+	{
+		Update_Initialize();
+		Update_StartWatch();
+	}
 	return (VersionMessageWin)res;
 }
 void __stdcall VersionMessageWin_SetShowingHandler(VersionMessageWin win, ShowingLabelEvent func, void* param)
@@ -627,7 +660,7 @@ void __stdcall VersionMessageWin_SetShowingHandler(VersionMessageWin win, Showin
 void __stdcall VersionMessageWin_SetColor(VersionMessageWin win, COLORREF bkColor, COLORREF textColor)
 {
 	auto w = (UpdateTextWin*)win;
-	w->SetColor(bkColor, textColor);
+	w->SetTextColor(bkColor, textColor);
 }
 void __stdcall VersionMessageWin_SetFont(VersionMessageWin win, int nPointSize, LPCTSTR lpszFaceName)
 {
