@@ -700,22 +700,37 @@ LRESULT UpdateTextWin::OnDestroy(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& 
 	return 0;
 }
 
-LRESULT UpdateTextWin::OnClick(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+LRESULT UpdateTextWin::OnLButtonDown(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
-	if (!core->PerformClick(GetParent()))
+	POINT pt;
+	::GetCursorPos(&pt);
+	if (DragDetect(m_hWnd, pt))
 	{
-		bHandled = FALSE;
+		ReleaseCapture();
+		::SendMessage(GetParent(), WM_SYSCOMMAND, SC_MOVE|HTCAPTION, 0);
+	}
+	else
+	{
+		core->PerformClick(GetParent());
 	}
 	return 0;
 }
 
 LRESULT UpdateTextWin::OnActivate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
-	WORD status = LOWORD(wParam);
-	if (status == WA_ACTIVE || status == WA_CLICKACTIVE)
+	if (uMsg == WM_ACTIVATE)
+	{
+		WORD status = LOWORD(wParam);
+		if (status == WA_ACTIVE || status == WA_CLICKACTIVE)
+		{
+			PostMessage(MSG_ACTIVATE);
+		}
+	}
+	else if(uMsg == MSG_ACTIVATE)
 	{
 		GetParent().SetActiveWindow();
 	}
+	
 	return 0;
 }
 
@@ -822,6 +837,16 @@ void UpdateTextWin::RefreshText(LPCTSTR ws)
 
 	RECT rcWin;
 	GetWindowRect(&rcWin);
+
+	if (IsRectEmpty(&rcWin))
+	{
+		if (IsWindowVisible()) ShowWindow(SW_HIDE);
+	}
+	else
+	{
+		if (!IsWindowVisible()) ShowWindow(SW_SHOWNOACTIVATE);
+	}
+
 	POINT ptWinPos = { rcWin.left,rcWin.top };
 	SIZE sizeWindow = {
 		rcWin.right - rcWin.left,

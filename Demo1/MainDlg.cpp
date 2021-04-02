@@ -87,8 +87,8 @@ LRESULT CMainDlg::OnShow(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam*/, BO
 	//VersionMessageWin_SetAnchor(w, ANCHOR_TOP | ANCHOR_RIGHT, 0, -20, -10, 0);
 	VersionMessageWin_SetShowingHandler(w, LABEL_TEXT_ALLCASE, 0);
 	VersionMessageWin_SetColor(w, 0xc0ffc0, 0x0);
-	VersionMessageWin_SetFont(w, 80, L"Tahoma");
-	VersionMessageWin_EnableShowBoxOnClick(w, false, nullptr, nullptr);
+	//VersionMessageWin_SetFont(w, 80, L"Tahoma");
+	//VersionMessageWin_EnableShowBoxOnClick(w, false, nullptr, nullptr);
 	//VersionMessageWin_SetTransparent(w, false);
 	//Update_SetCheckInterval(1000);
 	return 0;
