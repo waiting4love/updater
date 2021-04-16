@@ -721,7 +721,7 @@ LRESULT UpdateTextWin::OnActivate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL&
 	if (uMsg == WM_ACTIVATE)
 	{
 		WORD status = LOWORD(wParam);
-		if (status == WA_ACTIVE || status == WA_CLICKACTIVE)
+		if (/*status == WA_ACTIVE || */status == WA_CLICKACTIVE)
 		{
 			PostMessage(MSG_ACTIVATE);
 		}
