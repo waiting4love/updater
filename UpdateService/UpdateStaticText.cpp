@@ -686,7 +686,7 @@ LRESULT UpdateTextWin::OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& b
 	core->SetOffsetFromEdge(rc);
 	Parent.SubclassWindow(ParentWnd);
 
-	ShowWindow(SW_SHOW);
+	ShowWindow(SW_SHOWNA);
 
 	return 0;
 }
@@ -742,9 +742,20 @@ void UpdateTextWin::OnFinalMessage(HWND)
 
 LRESULT UpdateTextWin::OnParentSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
-	RECT rc = { 0 };
-	GetClientRect(&rc);
-	UpdateLayout({ rc.right, rc.bottom });
+	if (GetParent().IsWindowVisible())
+	{
+		RECT rc = { 0 };
+		GetClientRect(&rc);
+		UpdateLayout({ rc.right, rc.bottom });
+		if (!IsWindowVisible())
+		{
+			ShowWindow(SW_SHOW);
+		}
+	}
+	else
+	{
+		ShowWindow(SW_HIDE);
+	}
 	bHandled = FALSE;
 	return 0;
 }
