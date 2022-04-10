@@ -405,7 +405,8 @@ std::wstring GetSingleLineText(VersionMessage msg)
 	const size_t max_len = 64;
 	if (vi->isError())
 	{		
-		return GetShortText(vi->ErrorMessage, max_len);
+		//return GetShortText(vi->ErrorMessage, max_len);
+		return L"An error occurred";
 	}
 	else if (vi->isNewVersionReady())
 	{

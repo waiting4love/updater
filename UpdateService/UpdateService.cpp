@@ -526,7 +526,7 @@ bool VersionInformation::isNewVersionReady() const
     return
         ErrorMessage.empty() &&
         !Status.Remote.empty() &&
-        (Status.Local.empty() || !Status.New.empty());
+        (Status.Local.empty() || !Status.New.empty() || Status.Remote != Status.Local);
 }
 
 bool VersionInformation::isError() const
