@@ -59,12 +59,12 @@ public:
 	void open();
 	void close();
 
-	void sync(bool remove_untrack = true); // ÓëÔ¶³ÌÒ»ÖÂ
-	void fetch(FetchCallbackFunction callback); // È¡µÃÔ¶³ÌĞÅÏ¢
-	std::string getWorkDirVersionMessage(); // µÃµ½±¾µØ°æ±¾ĞÅÏ¢
-	std::string getRemoteVersionMessage();  // µÃµ½Ô¶³Ì°æ±¾ĞÅÏ¢
-	MessageList getDifferentVersionMessage();  // µÃµ½Ô¶³ÌÓë±¾µØÖ®¼äµÄ°æ±¾²îÒìĞÅÏ¢
-	FileComparationList getDifferentFiles(); // µÃµ½Ô¶³ÌÓë±¾µØÖ®¼äÓĞ±ä»¯µÄÎÄ¼ş£¨¸ñÊ½£º[delta]:[file]£©
+	void sync(bool remove_untrack = true); // ä¸è¿œç¨‹ä¸€è‡´
+	void fetch(FetchCallbackFunction callback); // å–å¾—è¿œç¨‹ä¿¡æ¯
+	std::string getWorkDirVersionMessage(); // å¾—åˆ°æœ¬åœ°ç‰ˆæœ¬ä¿¡æ¯
+	std::string getRemoteVersionMessage();  // å¾—åˆ°è¿œç¨‹ç‰ˆæœ¬ä¿¡æ¯
+	MessageList getDifferentVersionMessage();  // å¾—åˆ°è¿œç¨‹ä¸æœ¬åœ°ä¹‹é—´çš„ç‰ˆæœ¬å·®å¼‚ä¿¡æ¯
+	FileComparationList getDifferentFiles(); // å¾—åˆ°è¿œç¨‹ä¸æœ¬åœ°ä¹‹é—´æœ‰å˜åŒ–çš„æ–‡ä»¶ï¼ˆæ ¼å¼ï¼š[delta]:[file]ï¼‰
 
 private:
 	class Impl;

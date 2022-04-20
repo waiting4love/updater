@@ -4,8 +4,8 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
-#include <ryml/ryml.hpp>
-#include <ryml/ryml_std.hpp>
+#include <ryml.hpp>
+#include <ryml_std.hpp>
 
 namespace fs = std::filesystem;
 
@@ -98,7 +98,7 @@ bool GlobalSettings::loadFromFile(const std::wstring& file)
 	try {
 		std::ifstream ifs{ pathFile };
 		std::string str(std::istreambuf_iterator<char>{ifs}, {});
-		ryml::Tree tree = ryml::parse(c4::to_csubstr(str));
+		ryml::Tree tree = ryml::parse_in_arena(c4::to_csubstr(str));
 		loadFromTree(&tree);
 	}
 	catch (...) {
@@ -126,7 +126,7 @@ bool GlobalSettings::loadFromSelf()
 			ifs.read(s.data(), flag.size);
 
 			try {
-				ryml::Tree tree = ryml::parse(c4::to_substr(s));
+				ryml::Tree tree = ryml::parse_in_place(c4::to_substr(s));
 				loadFromTree(&tree);
 			}
 			catch (...) {
@@ -175,7 +175,7 @@ bool GlobalSettings::createSelfExe(const std::wstring& outfile) const
 	ofs.write(str.c_str(), str.length());
 
 	memcpy(flag.flag, FLAG, sizeof(flag.flag));
-	flag.size = str.length();
+	flag.size = (decltype(flag.size))str.length();
 	ofs.write((const char*)&flag, sizeof(flag));
 	return true;
 }

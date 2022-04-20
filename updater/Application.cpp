@@ -5,8 +5,8 @@
 #include "StringAlgo.h"
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
-#include <ryml/ryml.hpp>
-#include <ryml/ryml_std.hpp>
+#include <ryml.hpp>
+#include <ryml_std.hpp>
 #include <psapi.h>
 
 namespace progopt = boost::program_options;

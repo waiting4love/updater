@@ -1,0 +1,12 @@
+[requires]
+rapidyaml/0.4.0
+libgit2/1.3.0
+boost/1.78.0
+zlib/1.2.12
+
+[generators]
+visual_studio
+
+[options]
+libgit2:with_https=winhttp
+libgit2:with_libssh2=False

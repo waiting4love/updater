@@ -21,18 +21,18 @@ public:
 	bool close();
 
 	// low level
-	bool fetch(FetchCallback callback, void*); // È¡µÃÔ¶³ÌĞÅÏ¢
-	bool getWorkDirVersionMessage(char* buf, int len); // µÃµ½±¾µØ°æ±¾ĞÅÏ¢
-	bool getRemoteVersionMessage(char* buf, int len);  // µÃµ½Ô¶³Ì°æ±¾ĞÅÏ¢
-	bool getDifferentVersionMessage(MessageCallback callback, void* param);  // µÃµ½Ô¶³ÌÓë±¾µØÖ®¼äµÄ°æ±¾²îÒìĞÅÏ¢
-	bool getDifferentFiles(DiffCallback callback, void* param); // µÃµ½Ô¶³ÌÓë±¾µØÖ®¼äÓĞ±ä»¯µÄÎÄ¼ş£¨¸ñÊ½£º[delta]:[file]£©
-	bool sync(bool remove_untrack = true); // ÓëÔ¶³ÌÒ»ÖÂ
+	bool fetch(FetchCallback callback, void*); // å–å¾—è¿œç¨‹ä¿¡æ¯
+	bool getWorkDirVersionMessage(char* buf, int len); // å¾—åˆ°æœ¬åœ°ç‰ˆæœ¬ä¿¡æ¯
+	bool getRemoteVersionMessage(char* buf, int len);  // å¾—åˆ°è¿œç¨‹ç‰ˆæœ¬ä¿¡æ¯
+	bool getDifferentVersionMessage(MessageCallback callback, void* param);  // å¾—åˆ°è¿œç¨‹ä¸æœ¬åœ°ä¹‹é—´çš„ç‰ˆæœ¬å·®å¼‚ä¿¡æ¯
+	bool getDifferentFiles(DiffCallback callback, void* param); // å¾—åˆ°è¿œç¨‹ä¸æœ¬åœ°ä¹‹é—´æœ‰å˜åŒ–çš„æ–‡ä»¶ï¼ˆæ ¼å¼ï¼š[delta]:[file]ï¼‰
+	bool sync(bool remove_untrack = true); // ä¸è¿œç¨‹ä¸€è‡´
 
 private:
-	std::string work_dir; // ±¾µØÄ¿Â¼
-	std::string remote_site_name; // Ô¶³ÌµØÖ·±ğÃû
-	std::string remote_site_url; // Ô¶³ÌµØÖ·
-	std::string remote_branch; // Ô¶³Ì·ÖÖ§
+	std::string work_dir; // æœ¬åœ°ç›®å½•
+	std::string remote_site_name; // è¿œç¨‹åœ°å€åˆ«å
+	std::string remote_site_url; // è¿œç¨‹åœ°å€
+	std::string remote_branch; // è¿œç¨‹åˆ†æ”¯
 
 	git_repository* repo = nullptr;
 	git_remote* remote = nullptr;
@@ -106,16 +106,16 @@ bool Reviser::Impl::addIgnore(const std::string& s)
 	return error >= 0;
 }
 
-// ´ò¿ª»ò³õÊ¼»¯repo£¬ÉèÖÃÔ¶³ÌÃû³ÆÓëÂ·¾¶¡£
-// ÕÒµ½»òĞÂ½¨work_branch
-// checkoutµ½work_branch
+// æ‰“å¼€æˆ–åˆå§‹åŒ–repoï¼Œè®¾ç½®è¿œç¨‹åç§°ä¸è·¯å¾„ã€‚
+// æ‰¾åˆ°æˆ–æ–°å»ºwork_branch
+// checkoutåˆ°work_branch
 bool Reviser::Impl::open()
 {
 	int error = git_libgit2_init();
 	if (error < 0) return false;
 	initialized = true;
 
-	// ´ò¿ª»ò³õÊ¼»¯repo
+	// æ‰“å¼€æˆ–åˆå§‹åŒ–repo
 	error = git_repository_open(&repo, work_dir.c_str());
 	if (error == GIT_ENOTFOUND)
 	{
@@ -124,10 +124,10 @@ bool Reviser::Impl::open()
 
 	if (error < 0) return false;
 
-	// ÉèÖÃÔ¶³ÌÃû³ÆÓëÂ·¾¶
+	// è®¾ç½®è¿œç¨‹åç§°ä¸è·¯å¾„
 	error = git_remote_lookup(&remote, repo, remote_site_name.c_str());
 	if (error == GIT_ENOTFOUND) {
-		// Èç¹ûÃ»ÓĞµÃµ½£¬½¨Á¢
+		// å¦‚æœæ²¡æœ‰å¾—åˆ°ï¼Œå»ºç«‹
 		error = git_remote_create(&remote, repo, remote_site_name.c_str(), remote_site_url.c_str());
 	}
 	else if (error >= 0)
@@ -212,7 +212,7 @@ bool Reviser::Impl::getRemoteVersionMessage(char* buf, int len)
 
 bool Reviser::Impl::getDifferentVersionMessage(MessageCallback callback, void* param)
 {
-	// git log HEAD..ccs/master --oneline ÏÔÊ¾°æ±¾±ä»¯
+	// git log HEAD..ccs/master --oneline æ˜¾ç¤ºç‰ˆæœ¬å˜åŒ–
 	git_revwalk* walker;
 	int error = git_revwalk_new(&walker, repo);
 	if (error < 0) return false;
@@ -261,12 +261,12 @@ int each_file_cb(const git_diff_delta* delta, float progress, void* payload)
 	}
 
 	bool res = payload_pair->first(file, cd, payload_pair->second);
-	return res ? 0 : 1; // Èç¹û·µ»Ø0£¬»á¼ÌĞøµ÷ÓÃºóÃæ¸üÏêÏ¸µÄcb£¬·µ»Ø1£¬Ôò½áÊø
+	return res ? 0 : 1; // å¦‚æœè¿”å›0ï¼Œä¼šç»§ç»­è°ƒç”¨åé¢æ›´è¯¦ç»†çš„cbï¼Œè¿”å›1ï¼Œåˆ™ç»“æŸ
 }
 
 bool Reviser::Impl::getDifferentFiles(DiffCallback callback, void* param)
 {
-	// git diff --stat ccs/master  ÏÔÊ¾ĞŞ¸Ä(Óëworkdir¶Ô±È)
+	// git diff --stat ccs/master  æ˜¾ç¤ºä¿®æ”¹(ä¸workdirå¯¹æ¯”)
 	git_object* obj = NULL;
 	git_tree* tree = NULL;
 	git_diff* diff = NULL;
@@ -300,24 +300,34 @@ FINALEND:
 
 bool Reviser::Impl::sync(bool remove_untrack)
 {
-	// reset --hard£¬ Çå³ı±¾µØĞŞ¸Ä£¬Ö±½ÓÓëÔ¶³ÌÏàÍ¬
-	git_commit* remote_header = NULL;
-	std::string remote_url = remote_site_name + "/" + remote_branch;
-	int error = git_revparse_single((git_object**)&remote_header, repo, remote_url.c_str());
-	if (error < 0) return false;
-	error = git_reset(repo, (git_object*)remote_header, GIT_RESET_HARD, NULL);
-	git_commit_free(remote_header);
-	if (error < 0) return false;
+	auto worker = [this, remove_untrack]() {
+		// reset --hardï¼Œ æ¸…é™¤æœ¬åœ°ä¿®æ”¹ï¼Œç›´æ¥ä¸è¿œç¨‹ç›¸åŒ
+		git_commit* remote_header = NULL;
+		std::string remote_url = remote_site_name + "/" + remote_branch;
+		int error = git_revparse_single((git_object**)&remote_header, repo, remote_url.c_str());
+		if (error < 0) return false;
+		error = git_reset(repo, (git_object*)remote_header, GIT_RESET_HARD, NULL);
+		git_commit_free(remote_header);
+		if (error < 0) return false;
 
-	if (remove_untrack)
+		if (remove_untrack)
+		{
+			// git clean -d -f, åˆ é™¤æ²¡æœ‰addåˆ°æš‚å­˜åŒºçš„æ–‡ä»¶
+			git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
+			opts.checkout_strategy = GIT_CHECKOUT_REMOVE_UNTRACKED;
+			error = git_checkout_index(repo, NULL, &opts);
+		}
+
+		return error >= 0;
+	};
+	
+	// retry
+	for (int retry = 0; retry < 3; retry++)
 	{
-		// git clean -d -f, É¾³ıÃ»ÓĞaddµ½Ôİ´æÇøµÄÎÄ¼ş
-		git_checkout_options opts = GIT_CHECKOUT_OPTIONS_INIT;
-		opts.checkout_strategy = GIT_CHECKOUT_REMOVE_UNTRACKED;
-		error = git_checkout_index(repo, NULL, &opts);
+		if (worker()) return true;
+		Sleep(200);
 	}
-
-	return error >= 0;
+	return false;
 }
 
 static bool __stdcall fetch_cb(::TransferProgress* stats, void* payload)
@@ -373,23 +383,23 @@ void Reviser::close()
 	Check(impl->close());
 }
 
-void Reviser::sync(bool remove_untrack) // ÓëÔ¶³ÌÒ»ÖÂ
+void Reviser::sync(bool remove_untrack) // ä¸è¿œç¨‹ä¸€è‡´
 {
 	Check(impl->sync(remove_untrack));
 }
-void Reviser::fetch(FetchCallbackFunction callback) // È¡µÃÔ¶³ÌĞÅÏ¢
+void Reviser::fetch(FetchCallbackFunction callback) // å–å¾—è¿œç¨‹ä¿¡æ¯
 {
 	Check(impl->fetch(fetch_cb, std::addressof(callback)));
 }
 
-std::string Reviser::getWorkDirVersionMessage() // µÃµ½±¾µØ°æ±¾ĞÅÏ¢
+std::string Reviser::getWorkDirVersionMessage() // å¾—åˆ°æœ¬åœ°ç‰ˆæœ¬ä¿¡æ¯
 {
 	char buf[1024] = { 0 };
 	Check(impl->getWorkDirVersionMessage(buf, sizeof(buf) - 1));
 	return buf;
 }
 
-std::string Reviser::getRemoteVersionMessage()  // µÃµ½Ô¶³Ì°æ±¾ĞÅÏ¢
+std::string Reviser::getRemoteVersionMessage()  // å¾—åˆ°è¿œç¨‹ç‰ˆæœ¬ä¿¡æ¯
 {
 	char buf[1024] = { 0 };
 	Check(impl->getRemoteVersionMessage(buf, sizeof(buf) - 1));
@@ -415,15 +425,15 @@ static bool __stdcall Reviser_DiffCallback(const char* file, FileComparationDelt
 	return true;
 }
 
-MessageList Reviser::getDifferentVersionMessage()  // µÃµ½Ô¶³ÌÓë±¾µØÖ®¼äµÄ°æ±¾²îÒìĞÅÏ¢
+MessageList Reviser::getDifferentVersionMessage()  // å¾—åˆ°è¿œç¨‹ä¸æœ¬åœ°ä¹‹é—´çš„ç‰ˆæœ¬å·®å¼‚ä¿¡æ¯
 {
 	MessageList result;
-	// git log HEAD..ccs/master --oneline ÏÔÊ¾°æ±¾±ä»¯
+	// git log HEAD..ccs/master --oneline æ˜¾ç¤ºç‰ˆæœ¬å˜åŒ–
 	Check(impl->getDifferentVersionMessage(Reviser_MessageCallback, &result));
 	return result;
 }
 
-FileComparationList Reviser::getDifferentFiles() // µÃµ½Ô¶³ÌÓë±¾µØÖ®¼äÓĞ±ä»¯µÄÎÄ¼ş£¨¸ñÊ½£º[delta]:[file]£©
+FileComparationList Reviser::getDifferentFiles() // å¾—åˆ°è¿œç¨‹ä¸æœ¬åœ°ä¹‹é—´æœ‰å˜åŒ–çš„æ–‡ä»¶ï¼ˆæ ¼å¼ï¼š[delta]:[file]ï¼‰
 {
 	FileComparationList result;
 	Check(impl->getDifferentFiles(Reviser_DiffCallback, &result));
