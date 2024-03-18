@@ -22,6 +22,7 @@ struct VersionInformation
 	bool isNewVersionReady() const;
 	bool isError() const;
 	bool isEmpty() const;
+	void setError(String message);
 	static VersionInformation createError(String message);
 	bool parse(const std::string& s);
 };

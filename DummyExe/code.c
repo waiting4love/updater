@@ -10,29 +10,45 @@
 #pragma comment(lib, "Shlwapi.lib")
 #pragma comment(lib, "Shell32.lib")
 #pragma comment(lib, "User32.lib")
-#pragma comment(lib, "Ole32.lib")
-#pragma comment(linker, "/align:512")
-#pragma comment(linker, "/merge:.data=.text")
-#pragma comment(linker, "/merge:.rdata=.text")
+//#pragma comment(lib, "Ole32.lib")
+// #pragma comment(linker, "/align:512")
+// #pragma comment(linker, "/merge:.data=.text")
+// #pragma comment(linker, "/merge:.rdata=.text")
 #pragma comment(linker, "/subsystem:windows")
-#pragma comment(linker, "/ENTRY:main")
+#pragma comment(linker, "/ENTRY:myentry")
 
-void main()
+void myentry()
 {
-  CoInitializeEx(NULL, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
   TCHAR file[MAX_PATH];
+  TCHAR update_file[MAX_PATH*2];
+  TCHAR update_param[MAX_PATH*2];
+
+  STARTUPINFO si;
+  PROCESS_INFORMATION pi;
+
+  DWORD pid = GetCurrentProcessId();
+
+  RtlSecureZeroMemory( &si, sizeof(si) );
+  si.cb = sizeof(si);
+  RtlSecureZeroMemory( &pi, sizeof(pi) );
+
   GetModuleFileName(NULL, file, MAX_PATH);
-
-  TCHAR update_file[MAX_PATH];
-  TCHAR update_param[MAX_PATH];
-  lstrcpy(update_file, file);
+  lstrcpyn(update_file, file, MAX_PATH);
   PathRemoveFileSpec(update_file);
-  lstrcat(update_file, _T("\\update~\\updater.exe"));
-
+  PathAppend(update_file, _T("update~\\updater.exe"));
   wsprintf(update_param,
-      _T("-frw %d --no-console --gui --after \"%s\""),
-      GetCurrentProcessId(), file);
-  ShellExecute(NULL, _T("open"), update_file, update_param, NULL, SW_SHOW);
-  CoUninitialize();
+      _T("\"%s\" -frw %d --no-console --gui --after \"%s\""),
+      update_file, pid, file);
+
+  CreateProcess( NULL,   // No module name (use command line)
+      update_param,        // Command line
+      NULL,           // Process handle not inheritable
+      NULL,           // Thread handle not inheritable
+      FALSE,          // Set handle inheritance to FALSE
+      0,              // No creation flags
+      NULL,           // Use parent's environment block
+      NULL,           // Use parent's starting directory 
+      &si,            // Pointer to STARTUPINFO structure
+      &pi );
   ExitProcess(0);
 }

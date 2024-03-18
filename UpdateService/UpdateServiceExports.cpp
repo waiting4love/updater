@@ -302,7 +302,7 @@ bool __stdcall VersionMessage_IsNothing(VersionMessage msg)
 }
 int copyStringList(const StringList& src, wchar_t* out, int len)
 {
-	int totalSize = std::reduce(src.begin(), src.end(), (size_t)0, [](size_t n, const String& s) { return n + s.length() + 1; });
+	size_t totalSize = std::reduce(src.begin(), src.end(), (size_t)0, [](size_t n, const String& s) { return n + s.length() + 1; });
 	if (totalSize < len)
 	{
 		for (auto& s : src)
@@ -313,7 +313,7 @@ int copyStringList(const StringList& src, wchar_t* out, int len)
 		}
 		*out = '\0';
 	}
-	return totalSize+1;
+	return (int)totalSize+1;
 }
 int __stdcall VersionMessage_GetRemoteMessage(VersionMessage msg, wchar_t* message, int len)
 {
@@ -331,7 +331,7 @@ int __stdcall VersionMessage_GetWhatsNewMessage(VersionMessage msg, wchar_t* mes
 {
 	auto vi = (VersionInformation*)msg;
 	if (vi == nullptr) return 0;
-	int totalSize = std::reduce(vi->Status.New.begin(), vi->Status.New.end(),
+	size_t totalSize = std::reduce(vi->Status.New.begin(), vi->Status.New.end(),
 		(size_t)0, [](size_t n, const StringList& s) { return n + copyStringList(s, nullptr, 0) + 1; });
 	if (totalSize < len)
 	{
@@ -344,18 +344,18 @@ int __stdcall VersionMessage_GetWhatsNewMessage(VersionMessage msg, wchar_t* mes
 		}
 		*message = '\0';
 	}
-	return totalSize+1;
+	return (int)totalSize+1;
 }
 int __stdcall VersionMessage_GetErrorMessage(VersionMessage msg, wchar_t* message, int len)
 {
 	auto vi = (VersionInformation*)msg;
 	if (vi == nullptr) return 0;
-	int msg_len = vi->ErrorMessage.length();
+	auto msg_len = vi->ErrorMessage.length();
 	if (msg_len < len)
 	{
 		lstrcpynW(message, vi->ErrorMessage.data(), len);
 	}
-	return msg_len+1;
+	return (int)msg_len+1;
 }
 
 VersionMessageLabel __stdcall VersionMessageLabel_Create(HWND parent, LPRECT rect, UINT id, bool manage_update_instance)
@@ -406,7 +406,7 @@ std::wstring GetSingleLineText(VersionMessage msg)
 	if (vi->isError())
 	{		
 		//return GetShortText(vi->ErrorMessage, max_len);
-		return L"An error occurred";
+		if(vi->Status.Local.empty()) return L"An error occurred";
 	}
 	else if (vi->isNewVersionReady())
 	{
@@ -416,10 +416,12 @@ std::wstring GetSingleLineText(VersionMessage msg)
 	{
 		return L"Connecting...";
 	}
-	else
+	else if (vi->Status.Local.empty())
 	{
-		return GetShortText(vi->Status.Local[0], max_len);
+		return L"Unrecognized status";
 	}
+
+	return GetShortText(vi->Status.Local[0], max_len);
 }
 
 std::wstring GetAllCaseText(VersionMessage msg)
@@ -554,7 +556,7 @@ int __stdcall VersionMessage_ShowBox(VersionMessage msg, HWND parent, const wcha
 		{
 			commandButtons.push_back({i+1, buttons[i] });
 		}
-		taskDlg.SetButtons(commandButtons.data(), commandButtons.size());
+		taskDlg.SetButtons(commandButtons.data(), (UINT)commandButtons.size());
 		taskDlg.ModifyFlags(0, TDF_USE_COMMAND_LINKS);
 	}
 
@@ -571,7 +573,7 @@ void __stdcall VersionMessageLabel_EnableShowBoxOnClick(VersionMessageLabel labe
 	if (request_exit)
 	{
 		if(request_exit == EXIT_BY_MESSAGE)
-			sta->EnableShowBoxOnClick(enable, [label, msg = (param == nullptr ? WM_CLOSE : (UINT)param)]() { ::SendMessage(::GetAncestor(VersionMessageLabel_GetHandle(label), GA_ROOTOWNER), msg, 0, 0); });
+			sta->EnableShowBoxOnClick(enable, [label, msg = (param == nullptr ? WM_CLOSE : (UINT)(DWORD_PTR)param)]() { ::SendMessage(::GetAncestor(VersionMessageLabel_GetHandle(label), GA_ROOTOWNER), msg, 0, 0); });
 		else if(request_exit == EXIT_BY_DESTROYWINDOW)
 			sta->EnableShowBoxOnClick(enable, [label]() { ::DestroyWindow(::GetAncestor(VersionMessageLabel_GetHandle(label), GA_ROOTOWNER));});
 		else if (request_exit == EXIT_BY_ENDDIALOG)
@@ -679,7 +681,7 @@ void __stdcall VersionMessageWin_EnableShowBoxOnClick(VersionMessageWin win, boo
 	if (request_exit)
 	{
 		if (request_exit == EXIT_BY_MESSAGE)
-			w->EnableShowBoxOnClick(enable, [w, msg = (param == nullptr ? WM_CLOSE : (UINT)param)]() { ::SendMessage(::GetAncestor(w->GetParent(), GA_ROOTOWNER), msg, 0, 0); });
+			w->EnableShowBoxOnClick(enable, [w, msg = (param == nullptr ? WM_CLOSE : (UINT)(DWORD_PTR)param)]() { ::SendMessage(::GetAncestor(w->GetParent(), GA_ROOTOWNER), msg, 0, 0); });
 		else if (request_exit == EXIT_BY_DESTROYWINDOW)
 			w->EnableShowBoxOnClick(enable, [w]() { ::DestroyWindow(::GetAncestor(w->GetParent(), GA_ROOTOWNER)); });
 		else if (request_exit == EXIT_BY_ENDDIALOG)

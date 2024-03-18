@@ -10,9 +10,9 @@ std::wstring to_wstring(std::wstring s)
 
 std::wstring to_wstring(std::string_view s, UINT code_page)
 {
-	int len = ::MultiByteToWideChar(code_page, 0, s.data(), s.length(), NULL, 0);
+	int len = ::MultiByteToWideChar(code_page, 0, s.data(), (int)s.length(), NULL, 0);
 	std::wstring ws(len, L'\0');
-	::MultiByteToWideChar(code_page, 0, s.data(), s.length(), ws.data(), len);
+	::MultiByteToWideChar(code_page, 0, s.data(), (int)s.length(), ws.data(), len);
 	return ws;
 }
 
@@ -23,9 +23,9 @@ std::string to_string(std::string s)
 
 std::string to_string(std::wstring_view ws, UINT code_page)
 {
-	int len = ::WideCharToMultiByte(code_page, 0, ws.data(), ws.length(), NULL, 0, NULL, NULL);
+	int len = ::WideCharToMultiByte(code_page, 0, ws.data(), (int)ws.length(), NULL, 0, NULL, NULL);
 	std::string s(len, '\0');
-	::WideCharToMultiByte(code_page, 0, ws.data(), ws.length(), s.data(), len, NULL, NULL);
+	::WideCharToMultiByte(code_page, 0, ws.data(), (int)ws.length(), s.data(), len, NULL, NULL);
 	return s;
 }
 

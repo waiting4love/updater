@@ -76,8 +76,6 @@ LRESULT CMainDlg::OnInitDialog(UINT /*uMsg*/, WPARAM /*wParam*/, LPARAM /*lParam
 	////VersionMessageWin_SetTransparent(w, false);
 	//Update_SetCheckInterval(1000);
 
-	SetDlgItemText(IDC_STATIC_VERSION, GetCommandLineW());
-
 	return TRUE;
 }
 

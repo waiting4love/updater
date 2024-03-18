@@ -35,7 +35,7 @@ struct WindowsError {
         std::wostringstream ss;
         ss << file << L':' << line << L" (" << function << L')';
         if (!msg.empty()) {
-            ss << L" ¡û " << msg;
+            ss << L" â† " << msg;
         }
         ss << ": " << code << L", " << wstrerror(code);
         return ss.str();
@@ -221,7 +221,7 @@ public:
         return VersionInfo.isEmpty();
     }
 private:
-    // ²úÉúÖ§³ÖÒì²½µÄ¹ÜµÀ
+    // äº§ç”Ÿæ”¯æŒå¼‚æ­¥çš„ç®¡é“
 	static BOOL APIENTRY CreatePipeEx(
             OUT LPHANDLE lpReadPipe,
             OUT LPHANDLE lpWritePipe,
@@ -480,12 +480,22 @@ private:
     {
         Terminated = false;
     }
-    void setTerminate() // ÉèÖÃ±êÖ¾£¬ÔÚexecuteCommandÖÐÊ±Ö±½Óthrow terminate error, ÔÚsleepÊ±Ö±½ÓÍË³ö
+    void setTerminate() // è®¾ç½®æ ‡å¿—ï¼Œåœ¨executeCommandä¸­æ—¶ç›´æŽ¥throw terminate error, åœ¨sleepæ—¶ç›´æŽ¥é€€å‡º
     {
         Terminated = true;
     }
     void checkStatusProc()
     {
+        try {
+            auto vd = readVersionInfomation();
+            {
+                std::scoped_lock<std::mutex> lg(VersionInfoMutex);
+                VersionInfo = std::move(vd); // try get first version info
+            }
+        } catch (...) {
+
+        }
+
         while (!Terminated)
         {
             try
@@ -502,10 +512,11 @@ private:
             }
             catch (const std::exception& ex)
             {
-                auto vd = VersionInformation::createError(to_wstring(ex.what()));
+                //auto vd = VersionInformation::createError(to_wstring(ex.what()));
                 {
                     std::scoped_lock<std::mutex> lg(VersionInfoMutex);
-                    VersionInfo = std::move(vd);
+                    //VersionInfo = std::move(vd);
+                    VersionInfo.setError(to_wstring(ex.what()));
                 }
                 VersionInfoReady.notify_one();
                 if (VersionReceived) VersionReceived();
@@ -539,10 +550,15 @@ bool VersionInformation::isEmpty() const
     return ErrorMessage.empty() && Status.isEmpty();
 }
 
+void VersionInformation::setError(String message)
+{
+    ErrorMessage = std::move(message);
+}
+
 VersionInformation VersionInformation::createError(String message)
 {
     VersionInformation res;
-    res.ErrorMessage = std::move(message);
+    res.setError(message);
     return res;
 }
 

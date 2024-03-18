@@ -40,16 +40,16 @@ public:
 	VersionMessage GetLatestMessage() const;
 	void SetShowingHandler(std::function<std::wstring()> msgToText);
 	void SetTextColor(COLORREF color);
-	// Èç¹ûreq for exit´æÔÚÇÒ±»µ÷ÓÃ£¬ÔÚ10ÃëÄÚÍË³ö¾ÍÆôÓÃ¸üĞÂ¡£
+	// å¦‚æœreq for exitå­˜åœ¨ä¸”è¢«è°ƒç”¨ï¼Œåœ¨10ç§’å†…é€€å‡ºå°±å¯ç”¨æ›´æ–°ã€‚
 	void EnableShowBoxOnClick(bool enable, std::function<void(void)> request_exit);
 	void EnableAutoSize(bool enable);
 	void SetAlignment(Align H, Align V);
 	void SetAnchor(UINT, int left, int top, int right, int bottom);
 	void EnableManageUpdateInstance(bool enable);
-	// ÊÇ·ñÔÚÍË³öÊ±¸üĞÂ£¬Èç¹ûÍ¨¹ı¶Ô»°¿ò¸üĞÂµÄ£¬ÔòÔÚÍË³öÊ±¼ì²éÊ±¼ä
+	// æ˜¯å¦åœ¨é€€å‡ºæ—¶æ›´æ–°ï¼Œå¦‚æœé€šè¿‡å¯¹è¯æ¡†æ›´æ–°çš„ï¼Œåˆ™åœ¨é€€å‡ºæ—¶æ£€æŸ¥æ—¶é—´
 	void EnablePerformUpdateOnExit(bool enable);
 	void SetFont(int nPointSize, LPCTSTR lpszFaceName);
-	bool UpdateLayout(SIZE size); // ¸üĞÂ´óĞ¡£¬Èç¹ûÃ»ÓĞ¸Ä±ä·µ»Øfalse
+	bool UpdateLayout(SIZE size); // æ›´æ–°å¤§å°ï¼Œå¦‚æœæ²¡æœ‰æ”¹å˜è¿”å›false
 	SIZE CalcTextSize(HDC hdc, wchar_t c, LPCWSTR text, RECT* rcFlag, RECT* rcText);
 	bool IsAutoSize() const;
 	bool HasAnchor(UINT) const;
