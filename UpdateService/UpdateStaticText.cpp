@@ -3,6 +3,7 @@
 #include "UpdateService.h"
 #include "UpdateServiceExports.h"
 #include "StringAlgo.h"
+#include "CrossProcessMessager.h"
 #include <gdiplus.h>
 #include <algorithm>
 
@@ -137,6 +138,14 @@ public:
 		m_bAutoSize = enable;
 	}
 
+	void InvokeExitFunc()
+	{
+		if (m_funcRequestExit)
+		{
+			m_funcRequestExit();
+		}
+	}
+
 	void UpdateOffsetFromEdge(const RECT &rcParent, const RECT &rcThis)
 	{
 		m_offsetFromEdge.left = rcThis.left - rcParent.left;
@@ -203,15 +212,27 @@ public:
 		// 如果有新版本
 		if (Update_IsNewVersionReady())
 		{
-			if (clock_type::now() - m_clkClickUpdateButton < std::chrono::seconds{ 10 })
+			//if (clock_type::now() - m_clkClickUpdateButton < std::chrono::seconds{ 10 })
+			//{
+			//	// 最后一次点Update按钮10秒内，更新并重启，且无视是否最后的程序
+			//	Update_Perform(true);
+			//}
+			//else if (m_bPerformUpdateOnExit && !m_latestInst.Exists())
+			//{
+			//	// 如果有更新标志，更新并退出
+			//	Update_Perform(false);
+			//}
+
+			if (!m_latestInst.Exists()) // 最后一个实例，开始干正事
 			{
-				// 最后一次点Update按钮10秒内，更新并重启，且无视是否最后的程序
-				Update_Perform(true);
-			}
-			else if (m_bPerformUpdateOnExit && !m_latestInst.Exists())
-			{
-				// 如果有更新标志，更新并退出
-				Update_Perform(false);
+				if (m_messager.RebootRequired())
+				{
+					Update_Perform(true);
+				}
+				else if (m_bPerformUpdateOnExit)
+				{
+					Update_Perform(false);
+				}
 			}
 		}
 
@@ -409,12 +430,13 @@ public:
 		{
 			if (LPCTSTR buttons[] = { L"Update" }; 1 == VersionMessage_ShowBox(msg, parent, NULL, buttons, 1))
 			{
-				m_clkClickUpdateButton = clock_type::now();
+				//m_clkClickUpdateButton = clock_type::now();
+				m_messager.RequireReboot();
 				m_funcRequestExit();
 			}
 			else
 			{
-				m_clkClickUpdateButton = clock_type::time_point{};
+				//m_clkClickUpdateButton = clock_type::time_point{};
 			}
 		}
 		else
@@ -423,16 +445,21 @@ public:
 		}
 		return true;
 	}
+
+	CrossProcessMessager& GetMessager() {
+		return m_messager;
+	}
 private:
 	LatestInstance m_latestInst;
+	CrossProcessMessager m_messager;
 	std::unique_ptr<Gdiplus::Font> m_ftIcon;
 	std::unique_ptr<Gdiplus::Font> m_ftText;
 	std::unique_ptr<std::remove_pointer_t<VersionMessage>, decltype(&VersionMessage_Destory)> m_latestMsg{ nullptr, &VersionMessage_Destory };
 	bool m_bAutoSize{ true };
 	bool m_bClickToShow{ true };
 	bool m_bPerformUpdateOnExit{ false };
-	using clock_type = std::chrono::steady_clock;
-	clock_type::time_point m_clkClickUpdateButton;
+	//using clock_type = std::chrono::steady_clock;
+	//clock_type::time_point m_clkClickUpdateButton;
 	std::function<void(void)> m_funcRequestExit{ nullptr };
 	std::function<std::wstring()> m_funcShowingHandler{ nullptr };
 	bool m_bManageUpdateInstance{ false };
@@ -686,6 +713,7 @@ LRESULT UpdateTextWin::OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& b
 	core->SetOffsetFromEdge(rc);
 	Parent.SubclassWindow(ParentWnd);
 
+	messageOfRequireExit = core->GetMessager().GetRequireRebootMessage();
 	ShowWindow(SW_SHOWNA);
 
 	return 0;
@@ -782,6 +810,12 @@ bool UpdateTextWin::UpdateLayout(SIZE size)
 	return false;
 }
 
+LRESULT UpdateTextWin::OnExitRequired(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+{
+	core->InvokeExitFunc();
+	return 0;
+}
+
 LRESULT UpdateTextWin::OnVersionInfoReceived(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
 {
 	core->UpdateMsg();
@@ -796,6 +830,14 @@ LRESULT UpdateTextWin::OnVersionInfoReceived(UINT uMsg, WPARAM wParam, LPARAM lP
 	if (buf != ws)
 	{
 		RefreshText(ws.c_str());
+
+		if (Update_IsNewVersionReady())
+		{
+			if (core->GetMessager().TryRemind())
+			{
+				core->PerformClick(GetParent());
+			}
+		}
 	}
 
 	return 0;

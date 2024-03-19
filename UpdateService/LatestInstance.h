@@ -16,5 +16,6 @@ public:
 	bool Exists();
 	bool Enter(const volatile std::atomic_bool& Terminated);
 	bool Leave();
+
 };
 

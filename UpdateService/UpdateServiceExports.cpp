@@ -303,7 +303,7 @@ bool __stdcall VersionMessage_IsNothing(VersionMessage msg)
 int copyStringList(const StringList& src, wchar_t* out, int len)
 {
 	size_t totalSize = std::reduce(src.begin(), src.end(), (size_t)0, [](size_t n, const String& s) { return n + s.length() + 1; });
-	if (totalSize < len)
+	if ((int)totalSize < len)
 	{
 		for (auto& s : src)
 		{
@@ -333,7 +333,7 @@ int __stdcall VersionMessage_GetWhatsNewMessage(VersionMessage msg, wchar_t* mes
 	if (vi == nullptr) return 0;
 	size_t totalSize = std::reduce(vi->Status.New.begin(), vi->Status.New.end(),
 		(size_t)0, [](size_t n, const StringList& s) { return n + copyStringList(s, nullptr, 0) + 1; });
-	if (totalSize < len)
+	if ((int)totalSize < len)
 	{
 		for (const auto& s : vi->Status.New)
 		{
@@ -351,7 +351,7 @@ int __stdcall VersionMessage_GetErrorMessage(VersionMessage msg, wchar_t* messag
 	auto vi = (VersionInformation*)msg;
 	if (vi == nullptr) return 0;
 	auto msg_len = vi->ErrorMessage.length();
-	if (msg_len < len)
+	if ((int)msg_len < len)
 	{
 		lstrcpynW(message, vi->ErrorMessage.data(), len);
 	}

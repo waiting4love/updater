@@ -76,7 +76,7 @@
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
     <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath);yaml-0.2.5\include;wtl</IncludePath>
-    <OutDir>$(SolutionDir)$(Configuration)\中文</OutDir>
+    <OutDir>$(SolutionDir)$(Configuration)\中文\</OutDir>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
@@ -182,6 +182,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClInclude Include="CrossProcessMessager.h" />
     <ClInclude Include="LatestInstance.h" />
     <ClInclude Include="UpdateServiceExports.h" />
     <ClInclude Include="framework.h" />
@@ -192,6 +193,7 @@
     <ClInclude Include="YamlDom.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="CrossProcessMessager.cpp" />
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="LatestInstance.cpp" />
     <ClCompile Include="UpdateServiceExports.cpp" />

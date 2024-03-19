@@ -1,10 +1,14 @@
 #include "pch.h"
 #include "LatestInstance.h"
 #include <algorithm>
+
 LatestInstance::LatestInstance()
 {
-    ::GetModuleFileName(NULL, nameOfMutex, MAX_PATH);
-    std::replace(std::begin(nameOfMutex), std::end(nameOfMutex), _T('\\'), _T('/'));
+    TCHAR baseName[MAX_PATH];
+    ::GetModuleFileName(NULL, baseName, MAX_PATH);
+    std::replace(std::begin(baseName), std::end(baseName), _T('\\'), _T('/'));
+    lstrcpy(nameOfMutex, baseName);
+    lstrcat(nameOfMutex, _T("/InstMu"));
 }
 
 LatestInstance::~LatestInstance()

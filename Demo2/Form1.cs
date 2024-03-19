@@ -16,7 +16,7 @@ namespace Demo2
         {
             InitializeComponent();
             var w = UpdateService.VersionMessageWin_Create(Handle, true);
-            UpdateService.VersionMessageWin_SetShowingHandler(w, UpdateService.LABEL_TEXT_ALLCASE, IntPtr.Zero);
+            //UpdateService.VersionMessageWin_SetShowingHandler(w, UpdateService.LABEL_TEXT_ALLCASE, IntPtr.Zero);
             //UpdateService.VersionMessageWin_EnableShowBoxOnClick(w, false, IntPtr.Zero, IntPtr.Zero);
             //UpdateService.VersionMessageWin_EnablePerformUpdateOnExit(w, true);
             //var rect = ClientRectangle;

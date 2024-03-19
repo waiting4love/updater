@@ -73,6 +73,7 @@ public:
 		MESSAGE_HANDLER(MSG_VERSIONINFO_RECEVICED, OnVersionInfoReceived)
 		MESSAGE_HANDLER(MSG_UPDATE_POS, OnParentSize)
 		MESSAGE_HANDLER(MSG_ACTIVATE, OnActivate)
+		MESSAGE_HANDLER(messageOfRequireExit, OnExitRequired)
 	ALT_MSG_MAP(100)
 		//MESSAGE_HANDLER(WM_SIZE, OnParentSize)
 		//MESSAGE_HANDLER(WM_MOVE, OnParentSize)
@@ -84,6 +85,8 @@ public:
 	LRESULT OnActivate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnParentSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnVersionInfoReceived(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
+	LRESULT OnExitRequired(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
+
 	void OnFinalMessage(HWND) override;
 	UpdateTextWin();
 	~UpdateTextWin() final;
@@ -99,7 +102,8 @@ public:
 	void EnableManageUpdateInstance(bool enable);
 
 private:
-	UpdateTextCore* core;
+	UINT messageOfRequireExit{ WM_DESTROY }; // 初始状态随便用一个前面用过的，等启动后会得到正确的ID
+	UpdateTextCore* core;	
 	bool UpdateLayout(SIZE size);
 	void RefreshText(LPCTSTR ws);
 };
