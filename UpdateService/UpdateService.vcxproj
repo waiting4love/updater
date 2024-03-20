@@ -101,7 +101,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;_DEBUG;UPDATESERVICE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;_DEBUG;UPDATESERVICE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions);_WTL_TASKDIALOG_DIRECT</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -120,7 +120,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>WIN32;NDEBUG;UPDATESERVICE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>WIN32;NDEBUG;UPDATESERVICE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions);_WTL_TASKDIALOG_DIRECT</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -144,7 +144,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;UPDATESERVICE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>_DEBUG;UPDATESERVICE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions);_WTL_TASKDIALOG_DIRECT</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -164,7 +164,7 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;UPDATESERVICE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;UPDATESERVICE_EXPORTS;_WINDOWS;_USRDLL;%(PreprocessorDefinitions);_WTL_TASKDIALOG_DIRECT</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeader>Use</PrecompiledHeader>
       <PrecompiledHeaderFile>pch.h</PrecompiledHeaderFile>
@@ -183,7 +183,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="CrossProcessMessager.h" />
-    <ClInclude Include="LatestInstance.h" />
+    <ClInclude Include="LockerForUpdate.h" />
     <ClInclude Include="UpdateServiceExports.h" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
@@ -195,7 +195,7 @@
   <ItemGroup>
     <ClCompile Include="CrossProcessMessager.cpp" />
     <ClCompile Include="dllmain.cpp" />
-    <ClCompile Include="LatestInstance.cpp" />
+    <ClCompile Include="LockerForUpdate.cpp" />
     <ClCompile Include="UpdateServiceExports.cpp" />
     <ClCompile Include="pch.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Create</PrecompiledHeader>

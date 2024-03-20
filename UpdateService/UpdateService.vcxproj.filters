@@ -39,7 +39,7 @@
     <ClInclude Include="UpdateServiceExports.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="LatestInstance.h">
+    <ClInclude Include="LockerForUpdate.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="CrossProcessMessager.h">
@@ -80,7 +80,7 @@
     <ClCompile Include="UpdateServiceExports.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="LatestInstance.cpp">
+    <ClCompile Include="LockerForUpdate.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="CrossProcessMessager.cpp">

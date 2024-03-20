@@ -1,8 +1,8 @@
 #include "pch.h"
-#include "LatestInstance.h"
+#include "LockerForUpdate.h"
 #include <algorithm>
 
-LatestInstance::LatestInstance()
+LockerForUpdate::LockerForUpdate()
 {
     TCHAR baseName[MAX_PATH];
     ::GetModuleFileName(NULL, baseName, MAX_PATH);
@@ -11,19 +11,19 @@ LatestInstance::LatestInstance()
     lstrcat(nameOfMutex, _T("/InstMu"));
 }
 
-LatestInstance::~LatestInstance()
+LockerForUpdate::~LockerForUpdate()
 {
     Leave();
 }
 
-bool LatestInstance::Release()
+bool LockerForUpdate::Release()
 {
     if (mutexInstance.m_h == nullptr) return false;
     mutexInstance.Close();
     return true;
 }
 
-bool LatestInstance::Acquire()
+bool LockerForUpdate::Acquire()
 {
     if (mutexInstance.m_h == nullptr)
     {
@@ -32,13 +32,13 @@ bool LatestInstance::Acquire()
     return mutexInstance.m_h != nullptr;
 }
 
-bool LatestInstance::Exists()
+bool LockerForUpdate::Exists()
 {
     CHandle h{ OpenMutex(SYNCHRONIZE, FALSE, nameOfMutex) };
     return h.m_h != nullptr;
 }
 
-bool LatestInstance::Enter(const volatile std::atomic_bool& Terminated)
+bool LockerForUpdate::Enter(const volatile std::atomic_bool& Terminated)
 {
     const int span = 100;
     if (mutexInstance.m_h != nullptr)
@@ -58,7 +58,7 @@ bool LatestInstance::Enter(const volatile std::atomic_bool& Terminated)
     return false;
 }
 
-bool LatestInstance::Leave()
+bool LockerForUpdate::Leave()
 {
     if (mutexInstance.m_h != nullptr && bLocked)
     {

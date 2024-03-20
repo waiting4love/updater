@@ -5,11 +5,9 @@
     <TargetFramework>net472</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>ma.manifest</ApplicationManifest>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <PlatformTarget>x64</PlatformTarget>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <OutputPath>C:\SourceCode\git\updater\x64\Debug\</OutputPath>
+    <OutputPath>$(SolutionDir)\$(PlatformTarget)\$(Configuration)</OutputPath>
   </PropertyGroup>
 
 </Project>

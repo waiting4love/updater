@@ -1,15 +1,15 @@
 #pragma once
 #include <atomic>
 
-class LatestInstance
+class LockerForUpdate
 {
 private:
 	CHandle mutexInstance;
 	TCHAR nameOfMutex[MAX_PATH];
 	bool bLocked{ false };
 public:
-	LatestInstance();
-	~LatestInstance();
+	LockerForUpdate();
+	~LockerForUpdate();
 
 	bool Release();
 	bool Acquire();

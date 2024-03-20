@@ -1,6 +1,6 @@
 #include "pch.h"
 #include "UpdateService.h"
-#include "LatestInstance.h"
+#include "LockerForUpdate.h"
 #include <filesystem>
 #include <tuple>
 #include <sstream>
@@ -442,7 +442,7 @@ private:
     void fetch() const
     {
         if (!isAvailable()) return;
-        LatestInstance li;
+        LockerForUpdate li;
         li.Acquire();
         li.Enter(Terminated);
         auto [code, output] = executeCommand(
@@ -458,7 +458,7 @@ private:
     }
     VersionInformation readVersionInfomation() const
     {
-        LatestInstance li;
+        LockerForUpdate li;
         li.Acquire();
         li.Enter(Terminated);
         auto [code, output] = executeCommand(getUpdateExe(), _T("-l"), Terminated);

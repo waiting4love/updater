@@ -4,6 +4,7 @@
 #include "UpdateServiceExports.h"
 #include "StringAlgo.h"
 #include "CrossProcessMessager.h"
+#include "LockerForUpdate.h"
 #include <gdiplus.h>
 #include <algorithm>
 
@@ -194,12 +195,12 @@ public:
 	{
 		gdiplus.Init();
 		SetFont(80, L"Segoe UI");
-		m_latestInst.Acquire();
+		m_lockerForUpdate.Acquire();
 	}
 
 	void Uninitialize()
 	{
-		m_latestInst.Release();
+		m_lockerForUpdate.Release();
 		m_ftIcon.reset();
 		m_ftText.reset();
 		gdiplus.Uninit();
@@ -223,7 +224,7 @@ public:
 			//	Update_Perform(false);
 			//}
 
-			if (!m_latestInst.Exists()) // 最后一个实例，开始干正事
+			if (!m_lockerForUpdate.Exists()) // 最后一个实例，开始干正事
 			{
 				if (m_messager.RebootRequired())
 				{
@@ -391,7 +392,7 @@ public:
 		{
 			int len = VersionMessage_GetRemoteMessage(msg, nullptr, 0);
 			std::wstring s(len, ' ');
-			VersionMessage_GetRemoteMessage(msg, s.data(), s.length());
+			VersionMessage_GetRemoteMessage(msg, s.data(), (int)s.length());
 			if (auto pos = s.find_first_of('\n'); pos != std::wstring::npos)
 			{
 				s.erase(pos);
@@ -450,7 +451,7 @@ public:
 		return m_messager;
 	}
 private:
-	LatestInstance m_latestInst;
+	LockerForUpdate m_lockerForUpdate;
 	CrossProcessMessager m_messager;
 	std::unique_ptr<Gdiplus::Font> m_ftIcon;
 	std::unique_ptr<Gdiplus::Font> m_ftText;
@@ -762,6 +763,25 @@ LRESULT UpdateTextWin::OnActivate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL&
 	return 0;
 }
 
+LRESULT UpdateTextWin::OnActivateApp(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled)
+{
+	if (wParam) {
+		TryRemindUpdate();
+	}
+	return 0;
+}
+
+void UpdateTextWin::TryRemindUpdate()
+{
+	if (Update_IsNewVersionReady())
+	{
+		if (core->GetMessager().TryRemind())
+		{
+			core->PerformClick(GetParent());
+		}
+	}
+}
+
 void UpdateTextWin::OnFinalMessage(HWND)
 {
 	core->Uninitialize();
@@ -821,7 +841,7 @@ LRESULT UpdateTextWin::OnVersionInfoReceived(UINT uMsg, WPARAM wParam, LPARAM lP
 	core->UpdateMsg();
 
 	std::wstring ws;
-	ws = core->GetMsgText();	
+	ws = core->GetMsgText();
 
 	TCHAR buf[256] = { 0 };
 	GetWindowText(buf, 256);
@@ -830,13 +850,14 @@ LRESULT UpdateTextWin::OnVersionInfoReceived(UINT uMsg, WPARAM wParam, LPARAM lP
 	if (buf != ws)
 	{
 		RefreshText(ws.c_str());
-
-		if (Update_IsNewVersionReady())
+		HWND hWndForeground = GetForegroundWindow();
+		HWND hWndParent = GetParent();
+		if (
+			hWndForeground == *this ||
+			hWndForeground == hWndParent ||
+			::IsChild(hWndParent, hWndForeground))
 		{
-			if (core->GetMessager().TryRemind())
-			{
-				core->PerformClick(GetParent());
-			}
+			TryRemindUpdate();
 		}
 	}
 

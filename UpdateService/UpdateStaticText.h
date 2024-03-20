@@ -7,7 +7,6 @@
 #include <functional>
 #include <chrono>
 #include "UpdateServiceExports.h"
-#include "LatestInstance.h"
 
 class UpdateTextCore;
 enum { MSG_VERSIONINFO_RECEVICED = WM_USER + 100, MSG_UPDATE_POS, MSG_ACTIVATE};
@@ -64,25 +63,27 @@ class UpdateTextWin :
 	public CWindowImpl<UpdateTextWin, CWindow, CWinTraits<WS_POPUP | WS_VISIBLE, WS_EX_LAYERED | WS_EX_NOACTIVATE >>
 {
 public:
-	CContainedWindow Parent{ this, 100 }; 
+	enum {PARENT_ALT_ID = 100};
+	CContainedWindow Parent{ this, PARENT_ALT_ID };
 	BEGIN_MSG_MAP(UpdateTextWin)
 		MESSAGE_HANDLER(WM_CREATE, OnCreate)
 		MESSAGE_HANDLER(WM_DESTROY, OnDestroy)
 		MESSAGE_HANDLER(WM_LBUTTONDOWN, OnLButtonDown)
 		MESSAGE_HANDLER(WM_ACTIVATE, OnActivate)
+		MESSAGE_HANDLER(WM_ACTIVATEAPP, OnActivateApp)
 		MESSAGE_HANDLER(MSG_VERSIONINFO_RECEVICED, OnVersionInfoReceived)
 		MESSAGE_HANDLER(MSG_UPDATE_POS, OnParentSize)
 		MESSAGE_HANDLER(MSG_ACTIVATE, OnActivate)
 		MESSAGE_HANDLER(messageOfRequireExit, OnExitRequired)
-	ALT_MSG_MAP(100)
-		//MESSAGE_HANDLER(WM_SIZE, OnParentSize)
-		//MESSAGE_HANDLER(WM_MOVE, OnParentSize)
+	ALT_MSG_MAP(PARENT_ALT_ID)
 		MESSAGE_HANDLER(WM_WINDOWPOSCHANGED, OnParentSize)
+		MESSAGE_HANDLER(WM_ACTIVATEAPP, OnActivateApp)
 	END_MSG_MAP()
 	LRESULT OnCreate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnDestroy(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnLButtonDown(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnActivate(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
+	LRESULT OnActivateApp(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnParentSize(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnVersionInfoReceived(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
 	LRESULT OnExitRequired(UINT uMsg, WPARAM wParam, LPARAM lParam, BOOL& bHandled);
@@ -106,4 +107,5 @@ private:
 	UpdateTextCore* core;	
 	bool UpdateLayout(SIZE size);
 	void RefreshText(LPCTSTR ws);
+	void TryRemindUpdate();
 };
