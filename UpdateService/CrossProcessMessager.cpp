@@ -16,12 +16,13 @@ class SharedMem
 private:
     T* pData{ nullptr };
     HANDLE mutex;
+    bool shouldReleaseMutex{ true };
 public:
     SharedMem(HANDLE mapping, HANDLE mutex)
         :mutex(mutex)
     {
         if (!mutex || !mapping) return;
-        WaitForSingleObject(mutex, INFINITE);
+        shouldReleaseMutex = WaitForSingleObject(mutex, 300) == WAIT_OBJECT_0;
         pData = (T*)MapViewOfFile(
             mapping,
             FILE_MAP_ALL_ACCESS,
@@ -34,8 +35,8 @@ public:
         if (pData)
         {
             UnmapViewOfFile(pData);
-            ReleaseMutex(mutex);
         }
+        if (shouldReleaseMutex) ReleaseMutex(mutex);
     }
     operator bool() const
     {
@@ -88,7 +89,7 @@ void CrossProcessMessager::RequireReboot()
         data->clockOnRequireReboot = clock_type::now();
     }
 
-    SendMessage(HWND_BROADCAST, messageOfRequireExit, 0, 0);
+    SendNotifyMessage(HWND_BROADCAST, messageOfRequireExit, 0, 0);
 }
 
 bool CrossProcessMessager::RebootRequired()

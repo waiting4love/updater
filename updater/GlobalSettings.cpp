@@ -4,8 +4,8 @@
 #include <filesystem>
 #include <fstream>
 #include <sstream>
-#include <ryml.hpp>
-#include <ryml_std.hpp>
+#include <ryml/ryml.hpp>
+#include <ryml/ryml_std.hpp>
 
 namespace fs = std::filesystem;
 
@@ -27,6 +27,7 @@ void GlobalSettings::init()
 	exe_name = path.filename().wstring();
 	exe_path = path.parent_path().wstring();
 	exe_fullname = path.wstring();
+	base_dir = exe_path;
 }
 
 void GlobalSettings::loadFromTree(void* ptree)
@@ -37,7 +38,7 @@ void GlobalSettings::loadFromTree(void* ptree)
 
 	ryml::Tree& tree = *(ryml::Tree*)ptree;
 	if (tree.size() > 2)
-	{		
+	{
 		if (auto root = tree.rootref(); root.valid() && root.has_child("git"))
 		{
 			auto git_node = root["git"];
@@ -53,16 +54,16 @@ void GlobalSettings::loadFromTree(void* ptree)
 			remote_url = to_wstring(u8_remote_url);
 			branch = to_wstring(u8_branch);
 			local_dir = to_wstring(u8_local_dir);
-
-			fs::path pathLocalDir = local_dir;
-			if (pathLocalDir.is_relative())
-			{
-				fs::path path{ base_dir };
-				path /= pathLocalDir;
-				pathLocalDir = fs::weakly_canonical(path);
-				local_dir = pathLocalDir.wstring();
-			}
 		}
+	}
+
+	fs::path pathLocalDir = local_dir;
+	if (pathLocalDir.is_relative())
+	{
+		fs::path path{ base_dir };
+		path /= pathLocalDir;
+		pathLocalDir = fs::weakly_canonical(path);
+		local_dir = pathLocalDir.wstring();
 	}
 }
 
@@ -78,8 +79,8 @@ std::string GlobalSettings::saveToString() const
 	node_git["branch"] << to_string(branch);
 	node_git["local"] << to_string(local_dir);
 
-	char buff[2048] = { 0 };	
-	auto res = ryml::emit(tree, buff);
+	char buff[2048] = { 0 };
+	auto res = ryml::emit_yaml(tree, buff);
 	return { res.begin(), res.end() };
 }
 
@@ -170,7 +171,7 @@ bool GlobalSettings::createSelfExe(const std::wstring& outfile) const
 		size -= len;
 	}
 
-	// write config, the 
+	// write config, the
 	auto str = saveToString();
 	ofs.write(str.c_str(), str.length());
 

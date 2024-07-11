@@ -5,8 +5,8 @@
 #include "StringAlgo.h"
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
-#include <ryml.hpp>
-#include <ryml_std.hpp>
+#include <ryml/ryml.hpp>
+#include <ryml/ryml_std.hpp>
 #include <psapi.h>
 
 namespace progopt = boost::program_options;
@@ -349,7 +349,7 @@ void Application::showStatus(Reviser& reviser) const
 		}
 	);
 
-	ryml::emit(tree);
+	ryml::emit_yaml(tree);
 }
 
 void Application::showFiles(Reviser& reviser)
@@ -369,7 +369,7 @@ void Application::showFiles(Reviser& reviser)
 		item["File"] << file.file;
 	}
 
-	ryml::emit(tree);
+	ryml::emit_yaml(tree);
 }
 
 bool Application::doUpdate(Reviser& reviser, bool reset)
@@ -411,7 +411,7 @@ bool Application::loadSettingsFromSelf()
 
 bool Application::verifySetting() const
 {
-	return !global_settings.getRemoteUrl().empty();
+	return !global_settings.getRemoteUrl().empty() && !global_settings.getLocalDir().empty();
 }
 
 void Application::doOutput(const std::wstring& outfile)
