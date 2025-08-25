@@ -1,0 +1,7 @@
+{
+  "dependencies": [
+    "boost-program-options",
+    "ryml",
+    "boost-algorithm"
+  ]
+}

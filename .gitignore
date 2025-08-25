@@ -71,8 +71,7 @@ StyleCopReport.xml
 *.iobj
 *.pch
 *.pdb
-*.ipdb
-*.pgc
+*.ipdb*.pgc
 *.pgd
 *.rsp
 *.sbr
@@ -345,3 +344,6 @@ healthchecksdb
 [Rr]elease32/
 [Dd]ebug64/
 [Rr]elease64/
+
+#vcpkg
+vcpkg_installed/
