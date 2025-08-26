@@ -33,31 +33,8 @@ git:
 
 > Please refer to the DEMO project to see more details.
 
-## Build with Conan
+## Build with VCPKG
 
-1. Add a profile called "mt64"
-
-```ini
-[settings]
-os=Windows
-os_build=Windows
-arch=x86_64
-arch_build=x86_64
-compiler=Visual Studio
-compiler.version=16
-compiler.runtime=MT
-build_type=Release
-[options]
-[build_requires]
-[env]
-```
-
-2. Create a folder in source folder, let's say: "rel64"
-
-```bash
-mkdir rel64
-cd rel64
-conan install .. --profile mt64 --build=libgit2
-```
-
-3. Add `rel64\conanbuildinfo.props` to project in "Property Manager"
+1. Install and integrate [VCPKG](https://github.com/microsoft/vcpkg), (tips: Visual Studio 2022 has inculded VCPKG, you can run it under `Developer Command Prompt`)
+2. Currect version of VCPKG cannot build libgit2, we have to manually build it, see `build-libgit2.bat`. (Add libgit2 into vcpkg.json is recommended once VCPKG fix it)
+3. Open with VS, Build ...
